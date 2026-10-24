@@ -711,8 +711,6 @@ Return one clean, high-quality, photorealistic edited car photograph suitable fo
 
 The primary objective is to preserve the original photo while making the target window naturally suitable for the intended decal proportions. If exact geometric matching conflicts with realistic automotive geometry, prioritize a natural-looking window and avoid introducing obvious distortions.`;
 
-        stepText.textContent = "Worker rotating active key & processing with Gemini Flash Image...";
-
         const payload = {
           prompt: promptInstruction,
           carImage: {
@@ -725,19 +723,29 @@ The primary objective is to preserve the original photo while making the target 
           }
         };
 
-        const response = await fetch(WORKER_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload),
-          signal: currentAbortController.signal
-        });
+        let response;
+        try {
+          response = await fetch(WORKER_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+            signal: currentAbortController.signal
+          });
+        } catch (fetchErr) {
+          if (fetchErr.name === 'AbortError') {
+            throw fetchErr;
+          }
+          throw new Error(
+            `Unable to connect to ${WORKER_ENDPOINT}. Please check if the Custom Domain (arapi.aurtho.com) is active in Cloudflare and that you are accessing from ar.aurtho.com.`
+          );
+        }
 
         const result = await response.json().catch(() => null);
 
         if (!response.ok || !result?.success) {
-          const errDetail = result?.error || `HTTP ${response.status} from proxy worker.`;
+          const errDetail = result?.error || `Server returned HTTP ${response.status} (${response.statusText}).`;
           throw new Error(errDetail);
         }
 
