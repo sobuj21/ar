@@ -84,7 +84,6 @@
           <p class="text-xs text-slate-500 hidden sm:block">Prepare realistic car photos for your decal designs</p>
         </div>
       </div>
-
     </div>
   </header>
 
@@ -92,12 +91,12 @@
   <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
 
     <!-- Alert / Error Banner -->
-    <div id="error-banner" class="hidden mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start justify-between text-rose-800 text-sm">
+    <div id="error-banner" class="hidden mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start justify-between text-rose-800 text-sm shadow-xs">
       <div class="flex items-start space-x-3">
         <i data-lucide="alert-circle" class="w-5 h-5 text-rose-600 mt-0.5 shrink-0"></i>
         <div>
           <p class="font-semibold text-rose-900" id="error-title">Processing Notice</p>
-          <p class="text-rose-700 text-xs sm:text-sm mt-0.5" id="error-desc"></p>
+          <p class="text-rose-700 text-xs sm:text-sm mt-0.5 leading-relaxed" id="error-desc"></p>
         </div>
       </div>
       <button onclick="hideError()" class="text-rose-400 hover:text-rose-700 p-1 rounded-md transition cursor-pointer">
@@ -123,7 +122,7 @@
               <span>Replace</span>
             </button>
           </div>
-          <p class="text-xs text-slate-500 mb-4">Choose the original car photo whose window you want to adjust.</p>
+          <p class="text-xs text-slate-500 mb-4">Choose the car photo whose window you want to adjust (full vehicle, half-car, or close-up).</p>
 
           <!-- Dropzone -->
           <div id="car-dropzone" 
@@ -229,8 +228,8 @@
 
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1">Retoucher Note / Specific Instruction (Optional)</label>
-              <input type="text" id="retoucher-notes" placeholder="e.g. Keep rubber weatherstrip line straight" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <p class="text-[11px] text-slate-400 mt-1">Stamping or compositing the decal itself onto the car is strictly forbidden by the system rules.</p>
+              <input type="text" id="retoucher-notes" placeholder="e.g. Ensure rubber trim line remains sharp and straight" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <p class="text-[11px] text-slate-400 mt-1">Stamping or compositing the decal itself onto the car is strictly forbidden by system rules.</p>
             </div>
           </div>
         </div>
@@ -265,7 +264,7 @@
               <h3 class="text-sm font-semibold text-slate-900 flex items-center space-x-2">
                 <span>Your Edited Car Photo</span>
                 <span id="status-badge" class="hidden px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-                  Ready for decal overlay
+                  2K Ultra-Res Output
                 </span>
               </h3>
               <p class="text-xs text-slate-500">Output photo with naturalized window proportions</p>
@@ -315,7 +314,7 @@
               </div>
               <div>
                 <h4 class="text-sm font-semibold text-slate-800">Adjusting Vehicle Geometry</h4>
-                <p id="loading-step-text" class="text-xs text-slate-500 mt-1 leading-relaxed">Connecting to secure proxy worker...</p>
+                <p id="loading-step-text" class="text-xs text-slate-500 mt-1 leading-relaxed">Connecting to studio engine...</p>
               </div>
             </div>
 
@@ -390,9 +389,6 @@
 
   <!-- ================= LOGIC SCRIPT ================= -->
   <script>
-    // -------------------------------------------------------------
-    // Configuration & State
-    // -------------------------------------------------------------
     // Cloudflare Worker Proxy Endpoint
     const WORKER_ENDPOINT = "https://arapi.aurtho.com/api/generate";
 
@@ -410,18 +406,16 @@
     let isGenerating = false;
     let currentAbortController = null;
     let generatedImageDataUrl = null;
-    let viewMode = 'single'; // 'single' | 'split'
+    let viewMode = 'single';
     let isZoomed = false;
 
-    // Initialize Lucide icons
+    // Initialize Lucide icons on load
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       setupUploadListeners();
     });
 
-    // -------------------------------------------------------------
-    // Upload Handlers & Alpha Scanner
-    // -------------------------------------------------------------
+    // Setup Drag-and-drop & File Picker Listeners
     function setupUploadListeners() {
       // Car Dropzone
       const carDropzone = document.getElementById('car-dropzone');
@@ -484,7 +478,6 @@
           carDimensions = { width: img.naturalWidth, height: img.naturalHeight };
           const ratio = (img.naturalWidth / img.naturalHeight).toFixed(2);
 
-          // Update UI
           document.getElementById('car-preview-img').src = carDataUrl;
           document.getElementById('car-filename').textContent = file.name;
           document.getElementById('car-dimensions').textContent = `${img.naturalWidth} × ${img.naturalHeight} px (${ratio}:1)`;
@@ -544,7 +537,7 @@
           document.getElementById('decal-preview-container').classList.remove('hidden');
           document.getElementById('decal-remove-btn').classList.remove('hidden');
 
-          // Analyze visible artwork alpha bounding box
+          // High-precision alpha channel bounding scanner
           analyzeDecalAlpha(img, img.naturalWidth, img.naturalHeight);
           validateInputsReady();
         };
@@ -568,7 +561,7 @@
       validateInputsReady();
     }
 
-    // Alpha Channel Bounding Box Scanner
+    // High-Precision Alpha Bounding Box Analyzer (ignores background / outer transparent padding)
     function analyzeDecalAlpha(img, width, height) {
       const artworkRatioElem = document.getElementById('decal-artwork-ratio');
       artworkRatioElem.textContent = 'Scanning...';
@@ -577,7 +570,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(img, 0, 0, width, height);
 
         const imgData = ctx.getImageData(0, 0, width, height);
@@ -586,10 +579,11 @@
         let minX = width, minY = height, maxX = 0, maxY = 0;
         let hasAlphaPixels = false;
 
+        // Threshold alpha check
         for (let y = 0; y < height; y++) {
           for (let x = 0; x < width; x++) {
             const alpha = data[(y * width + x) * 4 + 3];
-            if (alpha > 15) { // threshold for visible content
+            if (alpha > 15) { // Visible non-transparent pixel
               hasAlphaPixels = true;
               if (x < minX) minX = x;
               if (x > maxX) maxX = x;
@@ -632,7 +626,6 @@
       }
     }
 
-    // Toggle Advanced Drawer
     function toggleAdvancedSettings() {
       const drawer = document.getElementById('advanced-drawer');
       const chevron = document.getElementById('advanced-chevron');
@@ -641,7 +634,7 @@
     }
 
     // -------------------------------------------------------------
-    // Gemini Retouching Execution via Cloudflare Worker
+    // Main Studio Execution via Cloudflare Worker
     // -------------------------------------------------------------
     async function startGenerationWorkflow() {
       if (!carFile || !decalFile || isGenerating) return;
@@ -661,16 +654,21 @@
       document.getElementById('result-footer').classList.add('hidden');
 
       const stepText = document.getElementById('loading-step-text');
-      stepText.textContent = "Analyzing decal aspect ratio & window constraints...";
+      stepText.textContent = "Analyzing decal artwork bounds & window perspective...";
 
       currentAbortController = new AbortController();
 
       try {
-        // Calculate aspect ratio instructions
-        const canvasRatio = (decalDimensions.width / decalDimensions.height).toFixed(3);
-        const ratioGuidance = decalBoundingRatio && decalBoundingRatio.isPadded
-          ? `The reference decal design has an active visible artwork aspect ratio of approximately ${decalBoundingRatio.ratio}:1 (width:height). The full canvas ratio is ${canvasRatio}:1.`
-          : `The reference decal design has an aspect ratio of approximately ${canvasRatio}:1 (width:height).`;
+        // Enforce the trimmed artwork bounds strictly over the canvas
+        let targetRatio = (decalDimensions.width / decalDimensions.height).toFixed(3);
+        let ratioGuidance = '';
+
+        if (decalBoundingRatio && decalBoundingRatio.ratio) {
+          targetRatio = decalBoundingRatio.ratio;
+          ratioGuidance = `MANDATORY PROPORTION TARGET: The active sticker/decal artwork inside IMAGE 2 has an exact visible aspect ratio of ${targetRatio}:1 (width:height). Ignore all transparent outer padding or empty canvas space in IMAGE 2; your window reshaping MUST specifically match this ${targetRatio}:1 aspect ratio of the actual sticker design itself.`;
+        } else {
+          ratioGuidance = `MANDATORY PROPORTION TARGET: The sticker/decal design in IMAGE 2 has an aspect ratio of ${targetRatio}:1 (width:height). Reshape the window to accommodate this exact width-to-height ratio.`;
+        }
 
         const targetWindowVal = document.getElementById('target-window-select').value;
         const windowHint = targetWindowVal !== 'auto'
@@ -680,7 +678,7 @@
         const userNotes = document.getElementById('retoucher-notes').value.trim();
         const retoucherNote = userNotes ? `Retoucher note: ${userNotes}` : '';
 
-        // Automotive editing prompt
+        // Master Automotive Retouching Prompt
         const promptInstruction = `You are a professional automotive product photographer, automotive image retoucher, and geometric image-editing specialist.
 
 You have received two images.
@@ -693,7 +691,7 @@ ${retoucherNote}
 
 Your task is to generate a photorealistic, edited version of IMAGE 1 in which the identified car window has a suitable shape and usable area for the sticker or decal design represented by IMAGE 2.
 
-First, inspect both images. Identify the target car window, analyze its current boundaries and perspective, and estimate the decal's aspect ratio. If the decal contains transparent padding, consider the visible artwork boundaries when they can be identified reliably.
+First, inspect both images. Identify the target car window, analyze its current boundaries and perspective, and compute the decal's actual artwork aspect ratio. Disregard any transparent padding around the sticker design in IMAGE 2.
 
 Then edit the original car photograph to create a naturally shaped window with proportions suitable for later manual decal placement.
 
@@ -713,6 +711,7 @@ The primary objective is to preserve the original photo while making the target 
 
         const payload = {
           prompt: promptInstruction,
+          targetAspectRatio: targetRatio,
           carImage: {
             mimeType: carFile.type || "image/jpeg",
             data: carBase64
@@ -722,6 +721,8 @@ The primary objective is to preserve the original photo while making the target 
             data: decalBase64
           }
         };
+
+        stepText.textContent = "Synthesizing 2K edited vehicle photography...";
 
         let response;
         try {
@@ -738,7 +739,7 @@ The primary objective is to preserve the original photo while making the target 
             throw fetchErr;
           }
           throw new Error(
-            `Unable to connect to ${WORKER_ENDPOINT}. Please check if the Custom Domain (arapi.aurtho.com) is active in Cloudflare and that you are accessing from ar.aurtho.com.`
+            `Connection issue: Could not connect to ${WORKER_ENDPOINT}. Please verify arapi.aurtho.com is active in Cloudflare and that you are browsing from ar.aurtho.com.`
           );
         }
 
@@ -753,7 +754,6 @@ The primary objective is to preserve the original photo while making the target 
           throw new Error("No image data returned from image generation pipeline.");
         }
 
-        // Render generated image
         generatedImageDataUrl = result.imageData;
         displayGeneratedResult(generatedImageDataUrl);
 
