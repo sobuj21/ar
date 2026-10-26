@@ -712,6 +712,7 @@ The primary objective is to preserve the original photo while making the target 
         const payload = {
           prompt: promptInstruction,
           targetAspectRatio: targetRatio,
+          retoucherNotes: userNotes,
           carImage: {
             mimeType: carFile.type || "image/jpeg",
             data: carBase64
@@ -746,7 +747,8 @@ The primary objective is to preserve the original photo while making the target 
         const result = await response.json().catch(() => null);
 
         if (!response.ok || !result?.success) {
-          const errDetail = result?.error || (result ? "The server did not return image data." : `Server returned HTTP ${response.status} (${response.statusText || 'Error'}).`);
+          const errDetail = result?.error 
+            || (result ? "The server did not return image data." : `Server returned error (${response.status}: ${response.statusText || 'Request Failed'}).`);
           throw new Error(errDetail);
         }
 
