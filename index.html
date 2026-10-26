@@ -200,6 +200,10 @@
                   <span id="decal-artwork-ratio" class="text-xs font-bold text-indigo-700">Scanning...</span>
                 </div>
               </div>
+              <div class="pt-1 text-[11px] text-emerald-700 font-medium flex items-center space-x-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 shrink-0 text-emerald-600"></i>
+                <span>Edge-to-edge window template mode active</span>
+              </div>
             </div>
           </div>
         </div>
@@ -209,7 +213,7 @@
           <button type="button" onclick="toggleAdvancedSettings()" class="w-full px-5 py-3.5 flex items-center justify-between text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
             <span class="flex items-center space-x-2">
               <i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
-              <span>Target Window & Retoucher Controls</span>
+              <span>Target Window & Coachbuilding Retoucher Controls</span>
             </span>
             <i id="advanced-chevron" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform"></i>
           </button>
@@ -219,7 +223,7 @@
               <label class="block text-xs font-medium text-slate-700 mb-1">Target Window Focus</label>
               <select id="target-window-select" class="w-full text-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="auto">Auto-detect best visible window</option>
-                <option value="rear-quarter-window">Rear quarter window (C-Pillar / small side glass)</option>
+                <option value="rear-quarter-window">Rear quarter window (Hardtop side glass)</option>
                 <option value="rear-passenger-door-window">Rear passenger door window</option>
                 <option value="front-driver-passenger-window">Front side window</option>
                 <option value="rear-windshield-back-glass">Rear windshield / back hatch glass</option>
@@ -228,7 +232,7 @@
 
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1">Retoucher Note / Specific Instruction (Optional)</label>
-              <input type="text" id="retoucher-notes" placeholder="e.g. Ensure rubber trim line remains sharp and straight" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <input type="text" id="retoucher-notes" placeholder="e.g. Extend hardtop panel horizontally to fit full-width graphic" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <p class="text-[11px] text-slate-400 mt-1">Stamping or compositing the decal itself onto the car is strictly forbidden by system rules.</p>
             </div>
           </div>
@@ -665,9 +669,9 @@
 
         if (decalBoundingRatio && decalBoundingRatio.ratio) {
           targetRatio = decalBoundingRatio.ratio;
-          ratioGuidance = `MANDATORY PROPORTION TARGET: The active sticker/decal artwork inside IMAGE 2 has an exact visible aspect ratio of ${targetRatio}:1 (width:height). Ignore all transparent outer padding or empty canvas space in IMAGE 2; your window reshaping MUST specifically match this ${targetRatio}:1 aspect ratio of the actual sticker design itself.`;
+          ratioGuidance = `MANDATORY FULL-BLEED TEMPLATE RATIO: The active sticker artwork in IMAGE 2 has an exact visible aspect ratio of ${targetRatio}:1 (width:height). You MUST reshape the window in IMAGE 1 to match this ${targetRatio}:1 proportion edge-to-edge. Ignore any transparent outer padding around IMAGE 2.`;
         } else {
-          ratioGuidance = `MANDATORY PROPORTION TARGET: The sticker/decal design in IMAGE 2 has an aspect ratio of ${targetRatio}:1 (width:height). Reshape the window to accommodate this exact width-to-height ratio.`;
+          ratioGuidance = `MANDATORY FULL-BLEED TEMPLATE RATIO: The sticker design in IMAGE 2 has an aspect ratio of ${targetRatio}:1 (width:height). Reshape the window in IMAGE 1 to match this exact ${targetRatio}:1 proportion edge-to-edge.`;
         }
 
         const targetWindowVal = document.getElementById('target-window-select').value;
@@ -678,36 +682,39 @@
         const userNotes = document.getElementById('retoucher-notes').value.trim();
         const retoucherNote = userNotes ? `Retoucher note: ${userNotes}` : '';
 
-        // Master Automotive Retouching Prompt
-        const promptInstruction = `You are a professional automotive product photographer, automotive image retoucher, and geometric image-editing specialist.
+        // Master Automotive Coachbuilding & Full-Bleed Retouching Prompt
+        const promptInstruction = `You are a world-class automotive CAD designer, vehicle coachbuilder, and master photo retoucher.
 
-You have received two images.
+You have received two images:
+- IMAGE 1: The original photograph of a vehicle.
+- IMAGE 2: A pre-cut automotive window graphic / decal design.
 
-IMAGE 1 is the original car photograph. This is the primary image to edit.
-IMAGE 2 is a sticker or decal design. It is provided exclusively as a reference for the intended width-to-height proportions of the window in IMAGE 1.
-${ratioGuidance}
-${windowHint}
-${retoucherNote}
+YOUR PRIME DIRECTIVE:
+You MUST edit IMAGE 1 so that the target vehicle window is RESHAPED to MATCH THE EXACT PROPORTIONS, ASPECT RATIO, AND OUTER BOUNDARY SHAPE OF IMAGE 2.
+When the user subsequently places the graphic from IMAGE 2 onto this window, it MUST fit EDGE-TO-EDGE, covering the entire glass area perfectly with ZERO gaps at the top/bottom/sides, and ZERO overflow outside the rubber seals.
 
-Your task is to generate a photorealistic, edited version of IMAGE 1 in which the identified car window has a suitable shape and usable area for the sticker or decal design represented by IMAGE 2.
+CRITICAL ARCHITECTURAL RULES:
+1. MANDATORY WINDOW RESHAPING (DO NOT LEAVE THE WINDOW AT ITS ORIGINAL SIZE):
+   ${ratioGuidance}
+   ${windowHint}
+   ${retoucherNote}
+   Compare the target window in IMAGE 1 to the shape in IMAGE 2. If IMAGE 2 is wider, you MUST horizontally stretch and enlarge the window glass, window frame, and rubber weatherstripping. Adjust the surrounding vehicle bodywork, hardtop, or pillar panels seamlessly to make room for this reshaped window. Under no circumstances should you leave the window in its original stock dimensions.
 
-First, inspect both images. Identify the target car window, analyze its current boundaries and perspective, and compute the decal's actual artwork aspect ratio. Disregard any transparent padding around the sticker design in IMAGE 2.
+2. CORNER PROFILE & CONTOUR MATCHING:
+   Carefully analyze the four corners and perimeter curvature of the artwork in IMAGE 2. Reconstruct the car window's rubber trim and glass boundary so that its corners match the corner radius of the graphic in IMAGE 2.
 
-Then edit the original car photograph to create a naturally shaped window with proportions suitable for later manual decal placement.
+3. PERSPECTIVE & CAMERA ANGLE PRESERVATION:
+   The car in IMAGE 1 is shown from a specific angle and perspective. Apply natural 3D perspective foreshortening to the reshaped window so it looks like it belongs to this exact vehicle photographed from this exact angle.
 
-Preserve the original car's identity, color, visible parts, camera angle, composition, crop, background, lighting, and overall photographic appearance. Modify only the target window and the surrounding areas that must change to make the result visually seamless.
+4. PRESERVE CROP & CAMERA FRAMING:
+   Do NOT change the crop or camera zoom. If IMAGE 1 shows a close-up or half of the car (e.g., rear quarter view), the output MUST show that exact same partial view and framing. Do not zoom out.
 
-Respect perspective and automotive design. Reconstruct the glass, frame, reflections, interior visibility, trim, and nearby bodywork naturally. The result must look like an authentic photograph, not an AI-generated reinterpretation of the entire scene.
+5. PRISTINE, CLEAN OEM GLASS (NO DECAL STAMPING):
+   The output car photograph must show a CLEAN, UNMARKED, HIGH-GLOSS automotive window.
+   DO NOT paste, stamp, draw, composite, or watermark the sticker, skull, flag, or any artwork from IMAGE 2 onto the car. IMAGE 2 is STRICTLY A GEOMETRIC TEMPLATE for the shape of the window.
+   Reconstruct realistic dark window tint, factory glass reflections, and authentic rubber weatherstripping around the new perimeter.
 
-IMPORTANT: Do not add, paste, draw, composite, or recreate the sticker or decal in the final image. Do not use IMAGE 2 as a texture, graphic, or overlay. It is a geometric reference only.
-
-Do not add any text, watermark, signature, AI-generated label, company logo, model name, or other branding to the output.
-
-Do not change the original image's framing. If the input shows only a portion of the car, preserve that same visible portion.
-
-Return one clean, high-quality, photorealistic edited car photograph suitable for downloading and later manual decal placement.
-
-The primary objective is to preserve the original photo while making the target window naturally suitable for the intended decal proportions. If exact geometric matching conflicts with realistic automotive geometry, prioritize a natural-looking window and avoid introducing obvious distortions.`;
+Return one clean, high-resolution, photorealistic edited car photograph where the window has been completely reshaped to match the template in IMAGE 2.`;
 
         const payload = {
           prompt: promptInstruction,
