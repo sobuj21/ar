@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DecalFit AI — Professional Car Window Photo Preparation Studio</title>
+  <title>DecalFit AI — Professional Car Window Photo Preparation & Precision Alignment Studio</title>
   
   <!-- Inter Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,13 +54,40 @@
     /* Range input slider thumb styling */
     input[type=range]::-webkit-slider-thumb {
       pointer-events: all;
-      width: 28px;
-      height: 28px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background: #ffffff;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25);
       cursor: ew-resize;
       border: 2px solid #4f46e5;
+    }
+
+    /* Draggable pin handles for perspective warp */
+    .pin-handle {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #4f46e5;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      transform: translate(-50%, -50%);
+      cursor: move;
+      z-index: 50;
+      touch-action: none;
+      transition: transform 0.1s ease, background-color 0.15s ease;
+    }
+    .pin-handle:hover, .pin-handle:active {
+      background: #6366f1;
+      transform: translate(-50%, -50%) scale(1.25);
+    }
+    .pin-handle::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: #ffffff;
     }
   </style>
 </head>
@@ -78,11 +105,16 @@
           <div class="flex items-center space-x-2">
             <span class="font-bold text-lg text-slate-900 tracking-tight">DecalFit AI</span>
             <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-              Automotive Studio
+              Automotive Precision Studio
             </span>
           </div>
-          <p class="text-xs text-slate-500 hidden sm:block">Prepare realistic car photos for your decal designs</p>
+          <p class="text-xs text-slate-500 hidden sm:block">Vehicle window reshaping & pixel-perfect decal mockup alignment</p>
         </div>
+      </div>
+      <div class="flex items-center space-x-2 text-xs text-slate-500 font-mono">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="hidden sm:inline">Engine Active:</span>
+        <span class="text-slate-800 font-semibold">Gemini Multi-Reference</span>
       </div>
     </div>
   </header>
@@ -162,7 +194,7 @@
               <span>Replace</span>
             </button>
           </div>
-          <p class="text-xs text-slate-500 mb-4">Artwork whose proportions will guide the car window adjustment.</p>
+          <p class="text-xs text-slate-500 mb-4">Artwork whose proportions and contours will guide the window adjustment.</p>
 
           <!-- Dropzone -->
           <div id="decal-dropzone" 
@@ -180,7 +212,7 @@
             <div class="relative rounded-xl overflow-hidden border border-slate-200 aspect-video flex items-center justify-center p-3 bg-checkerboard">
               <img id="decal-preview-img" src="" alt="Decal Reference" class="max-h-full max-w-full object-contain filter drop-shadow-md">
               <div class="absolute top-2 left-2 px-2 py-1 bg-black/70 backdrop-blur-xs rounded text-[10px] text-white font-mono">
-                Decal Reference
+                Decal Blueprint
               </div>
             </div>
 
@@ -202,7 +234,7 @@
               </div>
               <div class="pt-1 text-[11px] text-emerald-700 font-medium flex items-center space-x-1">
                 <i data-lucide="check-circle" class="w-3.5 h-3.5 shrink-0 text-emerald-600"></i>
-                <span>Edge-to-edge window template mode active</span>
+                <span>Edge-to-edge full-bleed blueprint mode active</span>
               </div>
             </div>
           </div>
@@ -213,7 +245,7 @@
           <button type="button" onclick="toggleAdvancedSettings()" class="w-full px-5 py-3.5 flex items-center justify-between text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
             <span class="flex items-center space-x-2">
               <i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
-              <span>Target Window & Coachbuilding Retoucher Controls</span>
+              <span>Target Window & Retoucher Controls</span>
             </span>
             <i id="advanced-chevron" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform"></i>
           </button>
@@ -232,7 +264,7 @@
 
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1">Retoucher Note / Specific Instruction (Optional)</label>
-              <input type="text" id="retoucher-notes" placeholder="e.g. Extend hardtop panel horizontally to fit full-width graphic" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <input type="text" id="retoucher-notes" placeholder="e.g. Ensure rubber weatherstripping is sharp and clean" class="w-full text-xs rounded-lg border border-slate-200 px-3 py-2 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <p class="text-[11px] text-slate-400 mt-1">Stamping or compositing the decal itself onto the car is strictly forbidden by system rules.</p>
             </div>
           </div>
@@ -258,7 +290,7 @@
 
       </div>
 
-      <!-- ================= RIGHT COLUMN: PREVIEW & EXPORT ================= -->
+      <!-- ================= RIGHT COLUMN: PREVIEW, MOCKUP STUDIO & EXPORT ================= -->
       <div class="lg:col-span-7 space-y-6">
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col min-h-[580px]">
           
@@ -266,20 +298,24 @@
           <div class="flex flex-wrap items-center justify-between pb-4 border-b border-slate-100 gap-2">
             <div>
               <h3 class="text-sm font-semibold text-slate-900 flex items-center space-x-2">
-                <span>Your Edited Car Photo</span>
+                <span>Your Studio Output</span>
                 <span id="status-badge" class="hidden px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-                  High-Precision Output
+                  Precision Adjusted
                 </span>
               </h3>
-              <p class="text-xs text-slate-500">Output photo with naturalized window proportions</p>
+              <p class="text-xs text-slate-500">Switch between Clean Car, Decal Fit Alignment, and Compare</p>
             </div>
 
-            <!-- View Toggles (Single vs Split) -->
+            <!-- View Toggles (Final Clean vs Interactive Decal Fit vs Compare Split) -->
             <div id="view-controls" class="hidden flex items-center space-x-2">
               <div class="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex items-center">
-                <button id="view-single-btn" onclick="setViewMode('single')" class="px-2.5 py-1 text-xs font-medium rounded-md bg-white text-slate-900 shadow-xs flex items-center space-x-1 cursor-pointer">
-                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                  <span>Final</span>
+                <button id="view-clean-btn" onclick="setViewMode('clean')" class="px-2.5 py-1 text-xs font-medium rounded-md bg-white text-slate-900 shadow-xs flex items-center space-x-1 cursor-pointer">
+                  <i data-lucide="car" class="w-3.5 h-3.5 text-indigo-600"></i>
+                  <span>Clean Car</span>
+                </button>
+                <button id="view-mockup-btn" onclick="setViewMode('mockup')" class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 flex items-center space-x-1 cursor-pointer" title="Interactive Decal Alignment & Corner Fit Studio">
+                  <i data-lucide="crosshair" class="w-3.5 h-3.5 text-indigo-600"></i>
+                  <span class="font-semibold text-indigo-700">Decal Fit Studio</span>
                 </button>
                 <button id="view-split-btn" onclick="setViewMode('split')" class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-500 hover:text-slate-800 flex items-center space-x-1 cursor-pointer">
                   <i data-lucide="split-square-vertical" class="w-3.5 h-3.5"></i>
@@ -303,8 +339,8 @@
               </div>
               <h4 class="text-sm font-semibold text-slate-700">No Image Generated Yet</h4>
               <p class="text-xs text-slate-400 leading-relaxed">
-                Upload your base car photo and your decal reference on the left, then click 
-                <strong>Generate Edited Car Photo</strong> to trigger the studio workflow.
+                Upload your base car photo and decal reference on the left, then click 
+                <strong>Generate Edited Car Photo</strong> to initiate precision vehicle window reshaping.
               </p>
             </div>
 
@@ -317,7 +353,7 @@
                 </div>
               </div>
               <div>
-                <h4 class="text-sm font-semibold text-slate-800">Adjusting Vehicle Geometry</h4>
+                <h4 class="text-sm font-semibold text-slate-800">Synthesizing Reshaped Geometry</h4>
                 <p id="loading-step-text" class="text-xs text-slate-500 mt-1 leading-relaxed">Connecting to studio engine...</p>
               </div>
             </div>
@@ -325,12 +361,54 @@
             <!-- 3. RENDERED OUTPUT DISPLAY -->
             <div id="state-result" class="hidden w-full h-full flex items-center justify-center overflow-hidden rounded-xl bg-slate-950 p-2">
               
-              <!-- Single Output View -->
-              <div id="wrapper-single" class="relative max-w-full max-h-[500px] flex items-center justify-center transition-transform">
+              <!-- 3A: Clean Car View -->
+              <div id="wrapper-clean" class="relative max-w-full max-h-[500px] flex items-center justify-center transition-transform">
                 <img id="result-img" src="" alt="AI Adjusted Car Window" class="max-h-[500px] w-auto max-w-full object-contain rounded-lg">
               </div>
 
-              <!-- Split Comparison View -->
+              <!-- 3B: Interactive Decal Fit & 4-Corner Perspective Warp Studio -->
+              <div id="wrapper-mockup" class="hidden relative w-full h-[500px] flex items-center justify-center select-none overflow-hidden rounded-lg bg-black">
+                <!-- Base Car Canvas & Decal Render Canvas -->
+                <div id="canvas-container" class="relative max-h-full max-w-full flex items-center justify-center">
+                  <img id="mockup-base-img" src="" alt="Car Background" class="max-h-[480px] w-auto max-w-full object-contain pointer-events-none rounded">
+                  <canvas id="warp-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                  
+                  <!-- 4 Draggable Pin Handles -->
+                  <div id="pin-tl" class="pin-handle" title="Top-Left Corner"></div>
+                  <div id="pin-tr" class="pin-handle" title="Top-Right Corner"></div>
+                  <div id="pin-br" class="pin-handle" title="Bottom-Right Corner"></div>
+                  <div id="pin-bl" class="pin-handle" title="Bottom-Left Corner"></div>
+                </div>
+
+                <!-- Floating Tuning Toolbox for Decal Alignment -->
+                <div class="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 text-white text-xs flex flex-wrap items-center justify-between gap-3 z-40">
+                  <div class="flex items-center space-x-3">
+                    <span class="text-[11px] font-semibold text-indigo-300 flex items-center space-x-1">
+                      <i data-lucide="move" class="w-3.5 h-3.5"></i>
+                      <span>Drag 4 Corner Pins to Snap Decal into Window</span>
+                    </span>
+                    <button onclick="autoSnapDecalToWindow()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[11px] font-medium transition cursor-pointer">
+                      Auto-Center Snap
+                    </button>
+                    <button onclick="resetWarpPins()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] text-slate-300 transition cursor-pointer">
+                      Reset Pins
+                    </button>
+                  </div>
+                  
+                  <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-[11px] text-slate-400">Vinyl Tint:</span>
+                      <input type="range" id="decal-opacity-slider" min="30" max="100" value="88" oninput="renderWarpedDecal()" class="w-20 cursor-pointer">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <span class="text-[11px] text-slate-400">Corner Radius:</span>
+                      <input type="range" id="decal-radius-slider" min="0" max="30" value="10" oninput="renderWarpedDecal()" class="w-16 cursor-pointer">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3C: Split Comparison View -->
               <div id="wrapper-split" class="hidden relative w-full h-[480px] select-none overflow-hidden rounded-lg">
                 <!-- Bottom: Original Car -->
                 <img id="split-original-img" src="" alt="Original Car" class="absolute inset-0 w-full h-full object-contain pointer-events-none">
@@ -373,10 +451,19 @@
               </button>
             </div>
 
-            <button onclick="downloadCleanPhoto()" class="px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center space-x-2 transition cursor-pointer">
-              <i data-lucide="download" class="w-4 h-4"></i>
-              <span>Download Edited Photo</span>
-            </button>
+            <div class="flex items-center space-x-2">
+              <!-- Download Clean Car Photo -->
+              <button onclick="downloadCleanPhoto()" class="px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-900 hover:bg-slate-800 text-white shadow-sm flex items-center space-x-2 transition cursor-pointer">
+                <i data-lucide="download" class="w-4 h-4 text-slate-300"></i>
+                <span>Download Clean Car Photo</span>
+              </button>
+
+              <!-- Download Completed Product Mockup (Car + Fitted Decal) -->
+              <button onclick="downloadCompletedMockup()" class="px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center space-x-2 transition cursor-pointer">
+                <i data-lucide="check-check" class="w-4 h-4"></i>
+                <span>Download Product Mockup (Car + Decal)</span>
+              </button>
+            </div>
           </div>
 
         </div>
@@ -404,19 +491,31 @@
     let decalFile = null;
     let decalBase64 = null;
     let decalDataUrl = null;
+    let decalImageObj = null;
     let decalDimensions = { width: 0, height: 0 };
     let decalBoundingRatio = null;
 
     let isGenerating = false;
     let currentAbortController = null;
     let generatedImageDataUrl = null;
-    let viewMode = 'single';
+    let generatedImageObj = null;
+    let viewMode = 'clean';
     let isZoomed = false;
+
+    // Interactive Decal 4-Corner Pins (Normalized 0.0 to 1.0 relative to canvas)
+    let pins = {
+      tl: { x: 0.22, y: 0.18 },
+      tr: { x: 0.72, y: 0.19 },
+      br: { x: 0.73, y: 0.58 },
+      bl: { x: 0.20, y: 0.59 }
+    };
+    let activeDragPin = null;
 
     // Initialize Lucide icons on load
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       setupUploadListeners();
+      setupPinDragListeners();
     });
 
     // Setup Drag-and-drop & File Picker Listeners
@@ -528,24 +627,23 @@
         decalDataUrl = e.target.result;
         decalBase64 = decalDataUrl.split(',')[1];
 
-        const img = new Image();
-        img.onload = () => {
-          decalDimensions = { width: img.naturalWidth, height: img.naturalHeight };
-          const canvasRatio = (img.naturalWidth / img.naturalHeight).toFixed(3);
+        decalImageObj = new Image();
+        decalImageObj.onload = () => {
+          decalDimensions = { width: decalImageObj.naturalWidth, height: decalImageObj.naturalHeight };
+          const canvasRatio = (decalImageObj.naturalWidth / decalImageObj.naturalHeight).toFixed(3);
 
           document.getElementById('decal-preview-img').src = decalDataUrl;
           document.getElementById('decal-filename').textContent = file.name;
-          document.getElementById('decal-dimensions').textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+          document.getElementById('decal-dimensions').textContent = `${decalImageObj.naturalWidth} × ${decalImageObj.naturalHeight} px`;
           document.getElementById('decal-canvas-ratio').textContent = `${canvasRatio}:1`;
           document.getElementById('decal-dropzone').classList.add('hidden');
           document.getElementById('decal-preview-container').classList.remove('hidden');
           document.getElementById('decal-remove-btn').classList.remove('hidden');
 
-          // High-precision alpha channel bounding scanner
-          analyzeDecalAlpha(img, img.naturalWidth, img.naturalHeight);
+          analyzeDecalAlpha(decalImageObj, decalImageObj.naturalWidth, decalImageObj.naturalHeight);
           validateInputsReady();
         };
-        img.src = decalDataUrl;
+        decalImageObj.src = decalDataUrl;
       };
       reader.readAsDataURL(file);
     }
@@ -555,6 +653,7 @@
       decalFile = null;
       decalBase64 = null;
       decalDataUrl = null;
+      decalImageObj = null;
       decalDimensions = { width: 0, height: 0 };
       decalBoundingRatio = null;
       document.getElementById('decal-input').value = "";
@@ -565,7 +664,7 @@
       validateInputsReady();
     }
 
-    // High-Precision Alpha Bounding Box Analyzer (ignores background / outer transparent padding)
+    // Alpha Bounding Box Scanner
     function analyzeDecalAlpha(img, width, height) {
       const artworkRatioElem = document.getElementById('decal-artwork-ratio');
       artworkRatioElem.textContent = 'Scanning...';
@@ -583,11 +682,10 @@
         let minX = width, minY = height, maxX = 0, maxY = 0;
         let hasAlphaPixels = false;
 
-        // Threshold alpha check
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y += 2) {
+          for (let x = 0; x < width; x += 2) {
             const alpha = data[(y * width + x) * 4 + 3];
-            if (alpha > 15) { // Visible non-transparent pixel
+            if (alpha > 15) {
               hasAlphaPixels = true;
               if (x < minX) minX = x;
               if (x > maxX) maxX = x;
@@ -638,7 +736,7 @@
     }
 
     // -------------------------------------------------------------
-    // Main Studio Execution via Cloudflare Worker
+    // Main Studio Execution
     // -------------------------------------------------------------
     async function startGenerationWorkflow() {
       if (!carFile || !decalFile || isGenerating) return;
@@ -663,61 +761,16 @@
       currentAbortController = new AbortController();
 
       try {
-        // Enforce the trimmed artwork bounds strictly over the canvas
         let targetRatio = (decalDimensions.width / decalDimensions.height).toFixed(3);
-        let ratioGuidance = '';
-
         if (decalBoundingRatio && decalBoundingRatio.ratio) {
           targetRatio = decalBoundingRatio.ratio;
-          ratioGuidance = `MANDATORY FULL-BLEED TEMPLATE RATIO: The active sticker artwork in IMAGE 2 has an exact visible aspect ratio of ${targetRatio}:1 (width:height). You MUST reshape the window in IMAGE 1 to match this ${targetRatio}:1 proportion edge-to-edge. Ignore any transparent outer padding around IMAGE 2.`;
-        } else {
-          ratioGuidance = `MANDATORY FULL-BLEED TEMPLATE RATIO: The sticker design in IMAGE 2 has an aspect ratio of ${targetRatio}:1 (width:height). Reshape the window in IMAGE 1 to match this exact ${targetRatio}:1 proportion edge-to-edge.`;
         }
 
         const targetWindowVal = document.getElementById('target-window-select').value;
-        const windowHint = targetWindowVal !== 'auto'
-          ? `Focus specifically on the ${targetWindowVal.replace(/-/g, ' ')}.`
-          : `Identify the main vehicle window best suited for this decal design.`;
-
         const userNotes = document.getElementById('retoucher-notes').value.trim();
-        const retoucherNote = userNotes ? `Retoucher note: ${userNotes}` : '';
-
-        // Master Automotive Coachbuilding & Full-Bleed Retouching Prompt
-        const promptInstruction = `You are a world-class automotive CAD designer, vehicle coachbuilder, and master photo retoucher.
-
-You have received two images:
-- IMAGE 1: The original photograph of a vehicle.
-- IMAGE 2: A pre-cut automotive window graphic / decal design.
-
-YOUR PRIME DIRECTIVE:
-You MUST edit IMAGE 1 so that the target vehicle window is RESHAPED to MATCH THE EXACT PROPORTIONS, ASPECT RATIO, AND OUTER BOUNDARY SHAPE OF IMAGE 2.
-When the user subsequently places the graphic from IMAGE 2 onto this window, it MUST fit EDGE-TO-EDGE, covering the entire glass area perfectly with ZERO gaps at the top/bottom/sides, and ZERO overflow outside the rubber seals.
-
-CRITICAL ARCHITECTURAL RULES:
-1. MANDATORY WINDOW RESHAPING (DO NOT LEAVE THE WINDOW AT ITS ORIGINAL SIZE):
-   ${ratioGuidance}
-   ${windowHint}
-   ${retoucherNote}
-   Compare the target window in IMAGE 1 to the shape in IMAGE 2. If IMAGE 2 is wider, you MUST horizontally stretch and enlarge the window glass, window frame, and rubber weatherstripping. Adjust the surrounding vehicle bodywork, hardtop, or pillar panels seamlessly to make room for this reshaped window. Under no circumstances should you leave the window in its original stock dimensions.
-
-2. CORNER PROFILE & CONTOUR MATCHING:
-   Carefully analyze the four corners and perimeter curvature of the artwork in IMAGE 2. Reconstruct the car window's rubber trim and glass boundary so that its corners match the corner radius of the graphic in IMAGE 2.
-
-3. PERSPECTIVE & CAMERA ANGLE PRESERVATION:
-   The car in IMAGE 1 is shown from a specific angle and perspective. Apply natural 3D perspective foreshortening to the reshaped window so it looks like it belongs to this exact vehicle photographed from this exact angle.
-
-4. PRESERVE CROP & CAMERA FRAMING:
-   Do NOT change the crop or camera zoom. If IMAGE 1 shows a close-up or half of the car (e.g., rear quarter view), the output MUST show that exact same partial view and framing. Do not zoom out.
-
-5. PRISTINE, CLEAN OEM GLASS (NO DECAL STAMPING):
-   The output car photograph must show a CLEAN, UNMARKED, HIGH-GLOSS automotive window.
-   DO NOT paste, stamp, draw, composite, or watermark the sticker, skull, flag, or any artwork from IMAGE 2 onto the car. IMAGE 2 is STRICTLY A GEOMETRIC TEMPLATE for the shape of the window.
-   Reconstruct realistic dark window tint, factory glass reflections, and authentic rubber weatherstripping around the new perimeter.
-
-Return one clean, high-resolution, photorealistic edited car photograph where the window has been completely reshaped to match the template in IMAGE 2.`;
 
         const payload = {
-          prompt: promptInstruction,
+          prompt: "Adjust vehicle window glass to match blueprint proportions.",
           targetAspectRatio: targetRatio,
           retoucherNotes: userNotes,
           carImage: {
@@ -730,32 +783,25 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
           }
         };
 
-        stepText.textContent = "Synthesizing edited vehicle photography...";
+        stepText.textContent = "Synthesizing edited vehicle photography via studio worker...";
 
         let response;
         try {
           response = await fetch(WORKER_ENDPOINT, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
             signal: currentAbortController.signal
           });
         } catch (fetchErr) {
-          if (fetchErr.name === 'AbortError') {
-            throw fetchErr;
-          }
-          throw new Error(
-            `Connection issue: Could not connect to ${WORKER_ENDPOINT}. Please verify arapi.aurtho.com is active in Cloudflare and that you are browsing from ar.aurtho.com.`
-          );
+          if (fetchErr.name === 'AbortError') throw fetchErr;
+          throw new Error(`Connection issue: Could not connect to ${WORKER_ENDPOINT}.`);
         }
 
         const result = await response.json().catch(() => null);
 
         if (!response.ok || !result?.success) {
-          const errDetail = result?.error 
-            || (result ? "The server did not return image data." : `Server returned error (${response.status}: ${response.statusText || 'Request Failed'}).`);
+          const errDetail = result?.error || `Server returned error (${response.status}: ${response.statusText || 'Request Failed'}).`;
           throw new Error(errDetail);
         }
 
@@ -764,13 +810,17 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
         }
 
         generatedImageDataUrl = result.imageData;
-        displayGeneratedResult(generatedImageDataUrl);
+        generatedImageObj = new Image();
+        generatedImageObj.onload = () => {
+          displayGeneratedResult(generatedImageDataUrl);
+        };
+        generatedImageObj.src = generatedImageDataUrl;
 
       } catch (err) {
         if (err.name === 'AbortError') {
           showError("Request Canceled", "Image generation was canceled by user.");
         } else {
-          showError("Generation Error", err.message || "Failed to communicate with the proxy worker.");
+          showError("Generation Error", err.message || "Failed to communicate with proxy worker.");
         }
         document.getElementById('state-loading').classList.add('hidden');
         document.getElementById('state-empty').classList.remove('hidden');
@@ -784,9 +834,7 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
     }
 
     function cancelGenerationWorkflow() {
-      if (currentAbortController) {
-        currentAbortController.abort();
-      }
+      if (currentAbortController) currentAbortController.abort();
     }
 
     // Display Result
@@ -796,6 +844,7 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
       document.getElementById('state-result').classList.remove('hidden');
 
       document.getElementById('result-img').src = imgUrl;
+      document.getElementById('mockup-base-img').src = imgUrl;
       document.getElementById('split-original-img').src = carDataUrl;
       document.getElementById('split-result-img').src = imgUrl;
 
@@ -803,29 +852,47 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
       document.getElementById('view-controls').classList.remove('hidden');
       document.getElementById('result-footer').classList.remove('hidden');
 
-      setViewMode('single');
+      setViewMode('clean');
+      
+      // Initialize warp canvas dimensions after image renders
+      setTimeout(() => {
+        updateCanvasAndPins();
+        renderWarpedDecal();
+      }, 150);
     }
 
-    // View Modes & Comparison Slider
+    // View Modes
     function setViewMode(mode) {
       viewMode = mode;
-      const singleBtn = document.getElementById('view-single-btn');
+      const cleanBtn = document.getElementById('view-clean-btn');
+      const mockupBtn = document.getElementById('view-mockup-btn');
       const splitBtn = document.getElementById('view-split-btn');
-      const wrapperSingle = document.getElementById('wrapper-single');
+      const wrapperClean = document.getElementById('wrapper-clean');
+      const wrapperMockup = document.getElementById('wrapper-mockup');
       const wrapperSplit = document.getElementById('wrapper-split');
 
-      if (mode === 'single') {
-        singleBtn.className = "px-2.5 py-1 text-xs font-medium rounded-md bg-white text-slate-900 shadow-xs flex items-center space-x-1 cursor-pointer";
-        splitBtn.className = "px-2.5 py-1 text-xs font-medium rounded-md text-slate-500 hover:text-slate-800 flex items-center space-x-1 cursor-pointer";
-        wrapperSingle.classList.remove('hidden');
-        wrapperSplit.classList.add('hidden');
+      // Reset active button styling
+      [cleanBtn, mockupBtn, splitBtn].forEach(b => {
+        b.className = "px-2.5 py-1 text-xs font-medium rounded-md text-slate-500 hover:text-slate-800 flex items-center space-x-1 cursor-pointer";
+      });
+      wrapperClean.classList.add('hidden');
+      wrapperMockup.classList.add('hidden');
+      wrapperSplit.classList.add('hidden');
+
+      if (mode === 'clean') {
+        cleanBtn.className = "px-2.5 py-1 text-xs font-medium rounded-md bg-white text-slate-900 shadow-xs flex items-center space-x-1 cursor-pointer";
+        wrapperClean.classList.remove('hidden');
+      } else if (mode === 'mockup') {
+        mockupBtn.className = "px-2.5 py-1 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-700 shadow-xs flex items-center space-x-1 cursor-pointer border border-indigo-200";
+        wrapperMockup.classList.remove('hidden');
+        updateCanvasAndPins();
+        renderWarpedDecal();
       } else {
         splitBtn.className = "px-2.5 py-1 text-xs font-medium rounded-md bg-white text-slate-900 shadow-xs flex items-center space-x-1 cursor-pointer";
-        singleBtn.className = "px-2.5 py-1 text-xs font-medium rounded-md text-slate-500 hover:text-slate-800 flex items-center space-x-1 cursor-pointer";
-        wrapperSingle.classList.add('hidden');
         wrapperSplit.classList.remove('hidden');
         updateSplitPosition(50);
       }
+      lucide.createIcons();
     }
 
     function updateSplitPosition(val) {
@@ -837,25 +904,279 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
 
     function toggleZoom() {
       isZoomed = !isZoomed;
-      const singleWrapper = document.getElementById('wrapper-single');
+      const cleanWrapper = document.getElementById('wrapper-clean');
       const zoomIcon = document.getElementById('zoom-icon');
 
       if (isZoomed) {
-        singleWrapper.classList.add('scale-125');
+        cleanWrapper.classList.add('scale-125');
         zoomIcon.setAttribute('data-lucide', 'minimize-2');
       } else {
-        singleWrapper.classList.remove('scale-125');
+        cleanWrapper.classList.remove('scale-125');
         zoomIcon.setAttribute('data-lucide', 'maximize-2');
       }
       lucide.createIcons();
     }
 
-    // Direct Clean Download
+    // -------------------------------------------------------------
+    // Interactive 4-Corner Decal Fitting & Perspective Warp Engine
+    // -------------------------------------------------------------
+    function updateCanvasAndPins() {
+      const baseImg = document.getElementById('mockup-base-img');
+      const canvas = document.getElementById('warp-canvas');
+      const rect = baseImg.getBoundingClientRect();
+
+      canvas.width = baseImg.clientWidth;
+      canvas.height = baseImg.clientHeight;
+
+      // Position Pin Handles
+      updatePinElement('pin-tl', pins.tl, canvas.width, canvas.height);
+      updatePinElement('pin-tr', pins.tr, canvas.width, canvas.height);
+      updatePinElement('pin-br', pins.br, canvas.width, canvas.height);
+      updatePinElement('pin-bl', pins.bl, canvas.width, canvas.height);
+    }
+
+    function updatePinElement(id, normPos, width, height) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.left = `${normPos.x * width}px`;
+        el.style.top = `${normPos.y * height}px`;
+      }
+    }
+
+    function setupPinDragListeners() {
+      const pinIds = ['pin-tl', 'pin-tr', 'pin-br', 'pin-bl'];
+      const pinKeyMap = {
+        'pin-tl': 'tl',
+        'pin-tr': 'tr',
+        'pin-br': 'br',
+        'pin-bl': 'bl'
+      };
+
+      pinIds.forEach(id => {
+        const el = document.getElementById(id);
+        
+        // Mouse Down / Touch Start
+        const onStart = (e) => {
+          e.preventDefault();
+          activeDragPin = pinKeyMap[id];
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('touchmove', onMove, { passive: false });
+          window.addEventListener('mouseup', onEnd);
+          window.addEventListener('touchend', onEnd);
+        };
+
+        el.addEventListener('mousedown', onStart);
+        el.addEventListener('touchstart', onStart, { passive: false });
+      });
+
+      const onMove = (e) => {
+        if (!activeDragPin) return;
+        const canvas = document.getElementById('warp-canvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+
+        pins[activeDragPin] = { x, y };
+        updateCanvasAndPins();
+        renderWarpedDecal();
+      };
+
+      const onEnd = () => {
+        activeDragPin = null;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchend', onEnd);
+      };
+    }
+
+    function autoSnapDecalToWindow() {
+      // Default natural position for Jeep rear quarter window in 3/4 perspective
+      pins = {
+        tl: { x: 0.178, y: 0.118 },
+        tr: { x: 0.706, y: 0.122 },
+        br: { x: 0.718, y: 0.540 },
+        bl: { x: 0.174, y: 0.542 }
+      };
+      updateCanvasAndPins();
+      renderWarpedDecal();
+    }
+
+    function resetWarpPins() {
+      pins = {
+        tl: { x: 0.22, y: 0.18 },
+        tr: { x: 0.72, y: 0.19 },
+        br: { x: 0.73, y: 0.58 },
+        bl: { x: 0.20, y: 0.59 }
+      };
+      updateCanvasAndPins();
+      renderWarpedDecal();
+    }
+
+    // High-Precision Bilinear Perspective Quad-Warp Renderer
+    function renderWarpedDecal() {
+      const canvas = document.getElementById('warp-canvas');
+      if (!canvas || !decalImageObj || !decalImageObj.complete) return;
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const opacity = parseInt(document.getElementById('decal-opacity-slider').value, 10) / 100;
+      const cornerRadius = parseInt(document.getElementById('decal-radius-slider').value, 10);
+
+      // Pixel Coordinates of 4 Corners
+      const pTL = { x: pins.tl.x * canvas.width, y: pins.tl.y * canvas.height };
+      const pTR = { x: pins.tr.x * canvas.width, y: pins.tr.y * canvas.height };
+      const pBR = { x: pins.br.x * canvas.width, y: pins.br.y * canvas.height };
+      const pBL = { x: pins.bl.x * canvas.width, y: pins.bl.y * canvas.height };
+
+      ctx.save();
+      ctx.globalAlpha = opacity;
+
+      // Draw perspective-interpolated quad using triangle strip subdivision
+      const subdivisions = 24; // Smooth sub-pixel precision
+      const dw = decalImageObj.naturalWidth;
+      const dh = decalImageObj.naturalHeight;
+
+      for (let y = 0; y < subdivisions; y++) {
+        const v0 = y / subdivisions;
+        const v1 = (y + 1) / subdivisions;
+
+        for (let x = 0; x < subdivisions; x++) {
+          const u0 = x / subdivisions;
+          const u1 = (x + 1) / subdivisions;
+
+          // Compute 4 quad corners on canvas
+          const c00 = bilinearPoint(pTL, pTR, pBR, pBL, u0, v0);
+          const c10 = bilinearPoint(pTL, pTR, pBR, pBL, u1, v0);
+          const c11 = bilinearPoint(pTL, pTR, pBR, pBL, u1, v1);
+          const c01 = bilinearPoint(pTL, pTR, pBR, pBL, u0, v1);
+
+          // Draw 2 triangles per grid cell
+          drawTexturedTriangle(ctx, decalImageObj, 
+            c00, c10, c01, 
+            u0 * dw, v0 * dh, 
+            u1 * dw, v0 * dh, 
+            u0 * dw, v1 * dh
+          );
+          drawTexturedTriangle(ctx, decalImageObj, 
+            c10, c11, c01, 
+            u1 * dw, v0 * dh, 
+            u1 * dw, v1 * dh, 
+            u0 * dw, v1 * dh
+          );
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function bilinearPoint(tl, tr, br, bl, u, v) {
+      const topX = tl.x + (tr.x - tl.x) * u;
+      const topY = tl.y + (tr.y - tl.y) * u;
+      const botX = bl.x + (br.x - bl.x) * u;
+      const botY = bl.y + (br.y - bl.y) * u;
+      return {
+        x: topX + (botX - topX) * v,
+        y: topY + (botY - topY) * v
+      };
+    }
+
+    // Affine texture mapper for sub-triangles
+    function drawTexturedTriangle(ctx, img, p0, p1, p2, u0, v0, u1, v1, u2, v2) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.closePath();
+      ctx.clip();
+
+      const delta = u0 * (v1 - v2) - v0 * (u1 - u2) + (u1 * v2 - u2 * v1);
+      if (Math.abs(delta) < 0.0001) {
+        ctx.restore();
+        return;
+      }
+
+      const a = (p0.x * (v1 - v2) - p1.x * (v0 - v2) + p2.x * (v0 - v1)) / delta;
+      const b = (p0.y * (v1 - v2) - p1.y * (v0 - v2) + p2.y * (v0 - v1)) / delta;
+      const c = (u0 * (p1.x - p2.x) - u1 * (p0.x - p2.x) + u2 * (p0.x - p1.x)) / delta;
+      const d = (u0 * (p1.y - p2.y) - u1 * (p0.y - p2.y) + u2 * (p0.y - p1.y)) / delta;
+      const e = p0.x - a * u0 - c * v0;
+      const f = p0.y - b * u0 - d * v0;
+
+      ctx.transform(a, b, c, d, e, f);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+    }
+
+    // -------------------------------------------------------------
+    // High-Resolution Export Functions
+    // -------------------------------------------------------------
     function downloadCleanPhoto() {
       if (!generatedImageDataUrl) return;
       const a = document.createElement('a');
       a.href = generatedImageDataUrl;
-      a.download = `decalfit-adjusted-car-${Date.now()}.png`;
+      a.download = `decalfit-clean-car-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function downloadCompletedMockup() {
+      if (!generatedImageObj || !decalImageObj) return;
+
+      // Render onto full-resolution offscreen canvas matching the generated image
+      const outCanvas = document.createElement('canvas');
+      const w = generatedImageObj.naturalWidth;
+      const h = generatedImageObj.naturalHeight;
+      outCanvas.width = w;
+      outCanvas.height = h;
+
+      const ctx = outCanvas.getContext('2d');
+      ctx.drawImage(generatedImageObj, 0, 0, w, h);
+
+      // Render Warped Decal with identical normalized pin coordinates
+      const opacity = parseInt(document.getElementById('decal-opacity-slider').value, 10) / 100;
+      ctx.save();
+      ctx.globalAlpha = opacity;
+
+      const pTL = { x: pins.tl.x * w, y: pins.tl.y * h };
+      const pTR = { x: pins.tr.x * w, y: pins.tr.y * h };
+      const pBR = { x: pins.br.x * w, y: pins.br.y * h };
+      const pBL = { x: pins.bl.x * w, y: pins.bl.y * h };
+
+      const subdivisions = 32; // Maximum high-res fidelity
+      const dw = decalImageObj.naturalWidth;
+      const dh = decalImageObj.naturalHeight;
+
+      for (let y = 0; y < subdivisions; y++) {
+        const v0 = y / subdivisions;
+        const v1 = (y + 1) / subdivisions;
+
+        for (let x = 0; x < subdivisions; x++) {
+          const u0 = x / subdivisions;
+          const u1 = (x + 1) / subdivisions;
+
+          const c00 = bilinearPoint(pTL, pTR, pBR, pBL, u0, v0);
+          const c10 = bilinearPoint(pTL, pTR, pBR, pBL, u1, v0);
+          const c11 = bilinearPoint(pTL, pTR, pBR, pBL, u1, v1);
+          const c01 = bilinearPoint(pTL, pTR, pBR, pBL, u0, v1);
+
+          drawTexturedTriangle(ctx, decalImageObj, c00, c10, c01, u0 * dw, v0 * dh, u1 * dw, v0 * dh, u0 * dw, v1 * dh);
+          drawTexturedTriangle(ctx, decalImageObj, c10, c11, c01, u1 * dw, v0 * dh, u1 * dw, v1 * dh, u0 * dw, v1 * dh);
+        }
+      }
+      ctx.restore();
+
+      const mockupUrl = outCanvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = mockupUrl;
+      a.download = `decalfit-completed-mockup-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -865,6 +1186,7 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
       removeCarPhoto();
       removeDecalPhoto();
       generatedImageDataUrl = null;
+      generatedImageObj = null;
       document.getElementById('state-result').classList.add('hidden');
       document.getElementById('state-empty').classList.remove('hidden');
       document.getElementById('status-badge').classList.add('hidden');
@@ -872,7 +1194,6 @@ Return one clean, high-resolution, photorealistic edited car photograph where th
       document.getElementById('result-footer').classList.add('hidden');
     }
 
-    // Error Banner Helpers
     function showError(title, message) {
       const banner = document.getElementById('error-banner');
       document.getElementById('error-title').textContent = title;
