@@ -61,7 +61,7 @@
       <div class="flex items-center space-x-2 text-xs text-slate-500 font-mono">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span class="hidden sm:inline">Engine:</span>
-        <span class="text-slate-800 font-semibold">Gemini 3.1 Flash Image</span>
+        <span class="text-slate-800 font-semibold">Gemini 2.5 Flash Image</span>
       </div>
     </div>
   </header>
@@ -567,7 +567,7 @@
           }
         };
 
-        stepText.textContent = "Synthesizing reshaped window photography via Gemini 3.1 Flash Image...";
+        stepText.textContent = "Synthesizing reshaped window photography via Gemini 2.5 Flash Image...";
 
         const response = await fetch(WORKER_ENDPOINT, {
           method: "POST",
