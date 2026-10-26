@@ -746,7 +746,7 @@ The primary objective is to preserve the original photo while making the target 
         const result = await response.json().catch(() => null);
 
         if (!response.ok || !result?.success) {
-          const errDetail = result?.error || `Server returned HTTP ${response.status} (${response.statusText}).`;
+          const errDetail = result?.error || (result ? "The server did not return image data." : `Server returned HTTP ${response.status} (${response.statusText || 'Error'}).`);
           throw new Error(errDetail);
         }
 
