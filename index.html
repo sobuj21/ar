@@ -47,7 +47,7 @@
         <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 mt-0.5 shrink-0"></i>
         <div>
           <p class="font-semibold text-red-900">Generation Error</p>
-          <p id="error-message" class="text-red-700 text-xs sm:text-sm mt-0.5"></p>
+          <p id="error-message" class="text-red-700 text-xs sm:text-sm mt-0.5 font-mono"></p>
         </div>
       </div>
       <button onclick="dismissError()" class="text-red-400 hover:text-red-700 p-1 rounded-md">
@@ -74,13 +74,16 @@
           </div>
           <p class="text-xs text-slate-500 mb-4">Original vehicle photograph whose window needs geometric reshaping.</p>
 
-          <div id="car-dropzone" onclick="document.getElementById('car-file-input').click()" class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
+          <!-- CAR DROPZONE WITH DRAG & DROP EVENT LISTENERS -->
+          <div id="car-dropzone" 
+               onclick="document.getElementById('car-file-input').click()" 
+               class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
             <input id="car-file-input" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleCarFile(this.files[0])">
-            <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs">
+            <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs pointer-events-none">
               <i data-lucide="camera" class="w-6 h-6 text-slate-600"></i>
             </div>
-            <p class="text-xs font-semibold text-slate-700">Click to browse or drag & drop car photo</p>
-            <p class="text-[11px] text-slate-400 mt-1">Supports JPG, PNG, or WebP</p>
+            <p class="text-xs font-semibold text-slate-700 pointer-events-none">Click to browse or drag & drop car photo</p>
+            <p class="text-[11px] text-slate-400 mt-1 pointer-events-none">Supports JPG, PNG, or WebP</p>
           </div>
 
           <div id="car-preview-container" class="hidden space-y-3">
@@ -109,13 +112,16 @@
           </div>
           <p class="text-xs text-slate-500 mb-4">Artwork or cut template whose aspect ratio and contours will guide the window reshaping.</p>
 
-          <div id="decal-dropzone" onclick="document.getElementById('decal-file-input').click()" class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
+          <!-- DECAL DROPZONE WITH DRAG & DROP EVENT LISTENERS -->
+          <div id="decal-dropzone" 
+               onclick="document.getElementById('decal-file-input').click()" 
+               class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
             <input id="decal-file-input" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleDecalFile(this.files[0])">
-            <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs">
+            <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs pointer-events-none">
               <i data-lucide="layers" class="w-6 h-6 text-indigo-600"></i>
             </div>
-            <p class="text-xs font-semibold text-slate-700">Click to browse or drag transparent PNG</p>
-            <p class="text-[11px] text-slate-400 mt-1">Transparent PNG prioritized for alpha edge detection</p>
+            <p class="text-xs font-semibold text-slate-700 pointer-events-none">Click to browse or drag transparent PNG</p>
+            <p class="text-[11px] text-slate-400 mt-1 pointer-events-none">Transparent PNG prioritized for alpha edge detection</p>
           </div>
 
           <div id="decal-preview-container" class="hidden space-y-3">
@@ -323,9 +329,49 @@
     }
 
     function showError(msg) {
-      document.getElementById('error-message').textContent = msg;
+      document.getElementById('error-message').textContent = String(msg);
       document.getElementById('error-banner').classList.remove('hidden');
     }
+
+    // Attach native Drag and Drop event handlers
+    function setupDragAndDrop() {
+      const carDropzone = document.getElementById('car-dropzone');
+      const decalDropzone = document.getElementById('decal-dropzone');
+
+      [carDropzone, decalDropzone].forEach((zone) => {
+        ['dragenter', 'dragover'].forEach(eventName => {
+          zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('border-indigo-500', 'bg-indigo-50/50', 'ring-2', 'ring-indigo-200');
+          }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('border-indigo-500', 'bg-indigo-50/50', 'ring-2', 'ring-indigo-200');
+          }, false);
+        });
+      });
+
+      carDropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          handleCarFile(dt.files[0]);
+        }
+      });
+
+      decalDropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          handleDecalFile(dt.files[0]);
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', setupDragAndDrop);
 
     // Client-side downscaler to keep payloads optimal (< 1600px, quality 0.92)
     function scaleAndEncodeImage(file, maxEdge = 1600) {
@@ -368,6 +414,10 @@
 
     async function handleCarFile(file) {
       if (!file) return;
+      if (!file.type.match(/^image\/(png|jpe?g|webp)$/i)) {
+        showError("Invalid format for car photo: Please upload JPG, PNG, or WebP.");
+        return;
+      }
       dismissError();
       carFile = file;
 
@@ -386,7 +436,7 @@
 
         checkReadyToGenerate();
       } catch (err) {
-        showError("Failed to process car photo: " + err.message);
+        showError("Failed to process car photo: " + (err.message || String(err)));
       }
     }
 
@@ -402,6 +452,10 @@
 
     async function handleDecalFile(file) {
       if (!file) return;
+      if (!file.type.match(/^image\/(png|jpe?g|webp)$/i)) {
+        showError("Invalid format for decal: Please upload PNG, JPG, or WebP.");
+        return;
+      }
       dismissError();
       decalFile = file;
 
@@ -424,7 +478,7 @@
         analyzeDecalAlpha(result.cleanBase64, result.width, result.height);
         checkReadyToGenerate();
       } catch (err) {
-        showError("Failed to process decal template: " + err.message);
+        showError("Failed to process decal template: " + (err.message || String(err)));
       }
     }
 
@@ -534,15 +588,21 @@
           signal: currentAbortController.signal
         });
 
-        const result = await response.json().catch(() => null);
+        const rawText = await response.text();
+        let result = null;
+        try {
+          result = JSON.parse(rawText);
+        } catch {
+          throw new Error(`Worker returned non-JSON response (HTTP ${response.status}): ${rawText.slice(0, 200)}`);
+        }
 
         if (!response.ok || !result || result.success === false) {
-          const detail = result?.error || `Server responded with status code ${response.status}`;
+          const detail = result?.error || `Server returned error (${response.status}): ${rawText.slice(0, 200)}`;
           throw new Error(detail);
         }
 
         if (!result.imageData) {
-          throw new Error("No image candidate returned from the model.");
+          throw new Error("API completed but no image candidate was found in response payload.");
         }
 
         generatedImageUrl = result.imageData;
@@ -562,7 +622,7 @@
       } catch (err) {
         document.getElementById('state-loading').classList.add('hidden');
         document.getElementById('state-empty').classList.remove('hidden');
-        showError(err.message || "Failed to generate reshaped photo.");
+        showError(err.message || String(err) || "Failed to generate reshaped photo.");
       }
     }
 
