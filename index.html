@@ -34,10 +34,10 @@
 
       <div class="flex items-center space-x-3">
         <div class="flex items-center text-xs text-slate-600 bg-slate-100/90 px-3 py-1.5 rounded-full border border-slate-200 font-mono">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-2 animate-pulse"></span>
+          <span id="engine-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-2 animate-pulse"></span>
           <span class="text-slate-700 font-medium">Studio Engine</span>
           <span class="mx-1.5 text-slate-300">|</span>
-          <span class="text-slate-500">Online</span>
+          <span id="engine-status-text" class="text-slate-500">Online</span>
         </div>
       </div>
     </div>
@@ -50,12 +50,13 @@
     <div id="error-banner" class="hidden mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start justify-between text-red-800 text-sm">
       <div class="flex items-start space-x-3">
         <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 mt-0.5 shrink-0"></i>
-        <div>
+        <div class="space-y-1">
           <p class="font-semibold text-red-900">Processing Interrupted</p>
-          <p id="error-message" class="text-red-700 text-xs sm:text-sm mt-0.5 font-mono break-all"></p>
+          <p id="error-message" class="text-red-700 text-xs sm:text-sm font-mono break-words leading-relaxed"></p>
+          <p id="error-hint" class="hidden text-red-600/90 text-xs leading-normal pt-1 border-t border-red-200/60"></p>
         </div>
       </div>
-      <button onclick="dismissError()" class="text-red-400 hover:text-red-700 p-1 rounded-md transition cursor-pointer">
+      <button onclick="dismissError()" class="text-red-400 hover:text-red-700 p-1 rounded-md transition cursor-pointer shrink-0 ml-2">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
     </div>
@@ -81,7 +82,7 @@
 
           <!-- CAR DROPZONE -->
           <div id="car-dropzone" 
-               onclick="document.getElementById('car-file-input').click()" 
+               onclick="triggerCarInput()" 
                class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
             <input id="car-file-input" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleCarFile(this.files[0])">
             <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs pointer-events-none">
@@ -120,7 +121,7 @@
 
           <!-- DECAL DROPZONE -->
           <div id="decal-dropzone" 
-               onclick="document.getElementById('decal-file-input').click()" 
+               onclick="triggerDecalInput()" 
                class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 rounded-xl p-6 text-center cursor-pointer transition">
             <input id="decal-file-input" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleDecalFile(this.files[0])">
             <div class="w-12 h-12 mx-auto rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-xs pointer-events-none">
@@ -158,7 +159,7 @@
 
         <!-- OPTIONAL RETOUCHER NOTES -->
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
-          <label class="block text-xs font-semibold text-slate-700">
+          <label for="retoucher-notes" class="block text-xs font-semibold text-slate-700">
             Retoucher Instructions (Optional)
           </label>
           <input id="retoucher-notes" type="text" placeholder="e.g. Ensure bottom trim line remains chrome and straight" class="w-full text-xs rounded-xl border border-slate-200 px-3.5 py-2.5 text-slate-700 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500">
@@ -167,11 +168,16 @@
           </p>
         </div>
 
-        <!-- GENERATE BUTTON -->
-        <div>
+        <!-- GENERATE / CANCEL BUTTONS -->
+        <div class="space-y-2">
           <button id="generate-btn" disabled onclick="executeReshaping()" class="w-full py-4 px-4 rounded-xl font-semibold text-xs sm:text-sm bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 flex items-center justify-center space-x-2 transition shadow-xs">
             <i data-lucide="sparkles" class="w-4 h-4 text-slate-400" id="generate-btn-icon"></i>
-            <span>Generate Reshaped Car Photo</span>
+            <span id="generate-btn-label">Generate Reshaped Car Photo</span>
+          </button>
+
+          <button id="cancel-btn" onclick="cancelActiveGeneration()" class="hidden w-full py-3 px-4 rounded-xl font-medium text-xs bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 flex items-center justify-center space-x-2 transition cursor-pointer">
+            <i data-lucide="x" class="w-4 h-4"></i>
+            <span>Cancel Active Request</span>
           </button>
         </div>
 
@@ -270,7 +276,7 @@
 
           <!-- FOOTER ACTIONS -->
           <div id="output-actions" class="hidden pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-            <button onclick="executeReshaping()" class="px-4 py-2.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center space-x-1.5 transition cursor-pointer">
+            <button id="regenerate-btn" onclick="executeReshaping()" class="px-4 py-2.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center space-x-1.5 transition cursor-pointer">
               <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-500"></i>
               <span>Regenerate Variant</span>
             </button>
@@ -320,28 +326,55 @@
 
   <script>
     const WORKER_ENDPOINT = "https://arapi.aurtho.com/api/generate";
+    const REQUEST_TIMEOUT_MS = 95000; // 95s safe upper bound for multi-model fallback
+    const MAX_TRANSIENT_RETRIES = 1;
 
     let carFile = null;
     let carBase64 = null;
+    let carMimeType = "image/jpeg";
     let carDimensions = { width: 0, height: 0 };
 
     let decalFile = null;
     let decalBase64 = null;
+    let decalMimeType = "image/png";
     let decalDimensions = { width: 0, height: 0 };
     let decalBoundingRatio = null;
 
     let generatedImageUrl = null;
     let currentAbortController = null;
+    let isGenerating = false;
+    let isAnalyzingAlpha = false;
     let isZoomed = false;
 
     lucide.createIcons();
 
-    function dismissError() {
-      document.getElementById('error-banner').classList.add('hidden');
+    function triggerCarInput() {
+      if (isGenerating) return;
+      document.getElementById('car-file-input').click();
     }
 
-    function showError(msg) {
+    function triggerDecalInput() {
+      if (isGenerating) return;
+      document.getElementById('decal-file-input').click();
+    }
+
+    function dismissError() {
+      document.getElementById('error-banner').classList.add('hidden');
+      const hintEl = document.getElementById('error-hint');
+      hintEl.classList.add('hidden');
+      hintEl.textContent = '';
+    }
+
+    function showError(msg, hint = "") {
       document.getElementById('error-message').textContent = String(msg);
+      const hintEl = document.getElementById('error-hint');
+      if (hint) {
+        hintEl.textContent = String(hint);
+        hintEl.classList.remove('hidden');
+      } else {
+        hintEl.classList.add('hidden');
+        hintEl.textContent = '';
+      }
       document.getElementById('error-banner').classList.remove('hidden');
     }
 
@@ -355,6 +388,7 @@
           zone.addEventListener(eventName, (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (isGenerating) return;
             zone.classList.add('border-indigo-500', 'bg-indigo-50/50', 'ring-2', 'ring-indigo-200');
           }, false);
         });
@@ -369,6 +403,7 @@
       });
 
       carDropzone.addEventListener('drop', (e) => {
+        if (isGenerating) return;
         const dt = e.dataTransfer;
         if (dt && dt.files && dt.files.length > 0) {
           handleCarFile(dt.files[0]);
@@ -376,6 +411,7 @@
       });
 
       decalDropzone.addEventListener('drop', (e) => {
+        if (isGenerating) return;
         const dt = e.dataTransfer;
         if (dt && dt.files && dt.files.length > 0) {
           handleDecalFile(dt.files[0]);
@@ -385,47 +421,75 @@
 
     window.addEventListener('DOMContentLoaded', setupDragAndDrop);
 
-    // Client-side downscaler to keep payloads optimal (< 1600px, quality 0.92)
-    function scaleAndEncodeImage(file, maxEdge = 1600) {
+    /**
+     * Client-side downscaler & encoder to keep payloads fast & within Worker limits
+     * - Car photos are encoded as high-quality JPEG (0.92, max 1536px)
+     * - Decal templates preserve full alpha channel (WebP 0.92 or PNG, max 1024px)
+     */
+    function scaleAndEncodeImage(file, maxEdge = 1536, preserveAlpha = false) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-            let { width, height } = img;
+            const origWidth = img.naturalWidth || img.width;
+            const origHeight = img.naturalHeight || img.height;
+            let width = origWidth;
+            let height = origHeight;
+
             if (width > maxEdge || height > maxEdge) {
               if (width > height) {
-                height = Math.round((height * maxEdge) / width);
+                height = Math.max(1, Math.round((height * maxEdge) / width));
                 width = maxEdge;
               } else {
-                width = Math.round((width * maxEdge) / height);
+                width = Math.max(1, Math.round((width * maxEdge) / height));
                 height = maxEdge;
               }
             }
+
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
 
-            const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-            const base64Data = canvas.toDataURL(mime, 0.92);
+            let targetMime = preserveAlpha ? 'image/webp' : 'image/jpeg';
+            let dataUrl = canvas.toDataURL(targetMime, 0.92);
+
+            // Fallback to PNG if browser does not encode WebP
+            if (preserveAlpha && !dataUrl.startsWith('data:image/webp')) {
+              targetMime = 'image/png';
+              dataUrl = canvas.toDataURL('image/png');
+            }
+
+            const parts = dataUrl.split(',');
+            if (parts.length < 2 || !parts[1]) {
+              reject(new Error("Failed to encode image to Base64."));
+              return;
+            }
+
             resolve({
-              cleanBase64: base64Data.split(',')[1],
+              cleanBase64: parts[1],
+              dataUrl,
+              mimeType: targetMime,
               width,
-              height
+              height,
+              origWidth,
+              origHeight,
+              canvas
             });
           };
-          img.onerror = reject;
+          img.onerror = () => reject(new Error("Browser could not decode the selected image file."));
           img.src = e.target.result;
         };
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error("Failed to read file from disk."));
         reader.readAsDataURL(file);
       });
     }
 
     async function handleCarFile(file) {
-      if (!file) return;
+      if (!file || isGenerating) return;
       if (!file.type.match(/^image\/(png|jpe?g|webp)$/i)) {
         showError("Invalid format for car photo: Please upload JPG, PNG, or WebP.");
         return;
@@ -434,13 +498,14 @@
       carFile = file;
 
       try {
-        const result = await scaleAndEncodeImage(file, 1600);
+        const result = await scaleAndEncodeImage(file, 1536, false);
         carBase64 = result.cleanBase64;
+        carMimeType = result.mimeType;
         carDimensions = { width: result.width, height: result.height };
 
-        document.getElementById('car-preview-img').src = `data:image/jpeg;base64,${carBase64}`;
+        document.getElementById('car-preview-img').src = result.dataUrl;
         document.getElementById('car-file-name').textContent = file.name;
-        document.getElementById('car-file-dims').textContent = `${result.width} × ${result.height} px`;
+        document.getElementById('car-file-dims').textContent = `${result.origWidth} × ${result.origHeight} px`;
 
         document.getElementById('car-dropzone').classList.add('hidden');
         document.getElementById('car-preview-container').classList.remove('hidden');
@@ -448,13 +513,18 @@
 
         checkReadyToGenerate();
       } catch (err) {
+        carFile = null;
+        carBase64 = null;
         showError("Failed to process car photo: " + (err.message || String(err)));
+        checkReadyToGenerate();
       }
     }
 
     function removeCar() {
+      if (isGenerating) return;
       carFile = null;
       carBase64 = null;
+      carDimensions = { width: 0, height: 0 };
       document.getElementById('car-file-input').value = "";
       document.getElementById('car-dropzone').classList.remove('hidden');
       document.getElementById('car-preview-container').classList.add('hidden');
@@ -463,41 +533,52 @@
     }
 
     async function handleDecalFile(file) {
-      if (!file) return;
+      if (!file || isGenerating) return;
       if (!file.type.match(/^image\/(png|jpe?g|webp)$/i)) {
         showError("Invalid format for decal: Please upload PNG, JPG, or WebP.");
         return;
       }
       dismissError();
       decalFile = file;
+      isAnalyzingAlpha = true;
+      checkReadyToGenerate();
 
       try {
-        const result = await scaleAndEncodeImage(file, 1600);
+        const result = await scaleAndEncodeImage(file, 1024, true);
         decalBase64 = result.cleanBase64;
+        decalMimeType = result.mimeType;
         decalDimensions = { width: result.width, height: result.height };
 
-        document.getElementById('decal-preview-img').src = `data:image/png;base64,${decalBase64}`;
+        document.getElementById('decal-preview-img').src = result.dataUrl;
         document.getElementById('decal-file-name').textContent = file.name;
-        document.getElementById('decal-file-dims').textContent = `${result.width} × ${result.height} px`;
+        document.getElementById('decal-file-dims').textContent = `${result.origWidth} × ${result.origHeight} px`;
 
-        const canvasRatio = (result.width / result.height).toFixed(2);
+        const canvasRatio = (result.origWidth / result.origHeight).toFixed(2);
         document.getElementById('decal-canvas-ratio').textContent = `${canvasRatio}:1`;
 
         document.getElementById('decal-dropzone').classList.add('hidden');
         document.getElementById('decal-preview-container').classList.remove('hidden');
         document.getElementById('decal-remove-btn').classList.remove('hidden');
 
-        analyzeDecalAlpha(result.cleanBase64, result.width, result.height);
-        checkReadyToGenerate();
+        // Synchronously inspect the already-drawn canvas for alpha boundaries
+        analyzeDecalAlphaFromCanvas(result.canvas, result.width, result.height);
       } catch (err) {
+        decalFile = null;
+        decalBase64 = null;
+        decalBoundingRatio = null;
         showError("Failed to process decal template: " + (err.message || String(err)));
+      } finally {
+        isAnalyzingAlpha = false;
+        checkReadyToGenerate();
       }
     }
 
     function removeDecal() {
+      if (isGenerating) return;
       decalFile = null;
       decalBase64 = null;
       decalBoundingRatio = null;
+      isAnalyzingAlpha = false;
       document.getElementById('decal-file-input').value = "";
       document.getElementById('decal-dropzone').classList.remove('hidden');
       document.getElementById('decal-preview-container').classList.add('hidden');
@@ -505,16 +586,10 @@
       checkReadyToGenerate();
     }
 
-    // Inspect non-transparent pixels to find active artwork aspect ratio
-    function analyzeDecalAlpha(base64Data, width, height) {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+    // Inspect non-transparent pixels directly from the decoded canvas
+    function analyzeDecalAlphaFromCanvas(canvas, width, height) {
+      try {
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
         const imgData = ctx.getImageData(0, 0, width, height).data;
         let minX = width, minY = height, maxX = 0, maxY = 0;
         let foundVisible = false;
@@ -532,23 +607,45 @@
           }
         }
 
-        if (foundVisible && maxX > minX && maxY > minY) {
+        if (foundVisible && maxX >= minX && maxY >= minY) {
           const bw = maxX - minX + 1;
           const bh = maxY - minY + 1;
           decalBoundingRatio = (bw / bh).toFixed(3);
-          document.getElementById('decal-active-ratio').textContent = `${decalBoundingRatio}:1 (Active)`;
+          const isTrimmed = bw < width * 0.96 || bh < height * 0.96;
+          document.getElementById('decal-active-ratio').textContent = isTrimmed
+            ? `${decalBoundingRatio}:1 (Trimmed)`
+            : `${decalBoundingRatio}:1 (Full)`;
         } else {
           decalBoundingRatio = (width / height).toFixed(3);
           document.getElementById('decal-active-ratio').textContent = `${decalBoundingRatio}:1 (Full)`;
         }
-      };
-      img.src = `data:image/png;base64,${base64Data}`;
+      } catch (err) {
+        decalBoundingRatio = (width / height).toFixed(3);
+        document.getElementById('decal-active-ratio').textContent = `${decalBoundingRatio}:1`;
+      }
     }
 
     function checkReadyToGenerate() {
       const btn = document.getElementById('generate-btn');
       const icon = document.getElementById('generate-btn-icon');
-      if (carBase64 && decalBase64) {
+      const label = document.getElementById('generate-btn-label');
+      const regenBtn = document.getElementById('regenerate-btn');
+
+      if (isGenerating) {
+        btn.disabled = true;
+        btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'border-slate-200');
+        btn.classList.remove('bg-slate-900', 'text-white', 'hover:bg-slate-800', 'cursor-pointer');
+        icon.classList.add('text-slate-400');
+        icon.classList.remove('text-indigo-400');
+        label.textContent = "Processing Window Geometry...";
+        if (regenBtn) regenBtn.disabled = true;
+        return;
+      }
+
+      label.textContent = "Generate Reshaped Car Photo";
+      if (regenBtn) regenBtn.disabled = false;
+
+      if (carBase64 && decalBase64 && !isAnalyzingAlpha) {
         btn.disabled = false;
         btn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'border-slate-200');
         btn.classList.add('bg-slate-900', 'text-white', 'hover:bg-slate-800', 'cursor-pointer');
@@ -563,10 +660,42 @@
       }
     }
 
+    function cancelActiveGeneration() {
+      if (currentAbortController) {
+        currentAbortController.abort("USER_CANCELLED");
+      }
+    }
+
+    /**
+     * Diagnostic helper when browser throws TypeError: Failed to fetch
+     * Determines whether the issue is CORS, offline client, or Worker 502/timeout
+     */
+    async function diagnoseFetchFailure() {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return "Your device appears to be offline. Please check your internet connection.";
+      }
+      const currentOrigin = window.location.origin;
+      try {
+        // Attempt a lightweight no-cors reachability probe to check if DNS/edge is alive
+        await fetch(WORKER_ENDPOINT, { method: "HEAD", mode: "no-cors", cache: "no-store" });
+        return `The Worker endpoint (${WORKER_ENDPOINT}) is reachable on the network, but the browser blocked the response. This occurs when: (1) Origin '${currentOrigin}' is rejected by CORS, or (2) The Worker crashed/timed out before returning CORS headers. Ensure the latest worker.js is deployed on Cloudflare.`;
+      } catch {
+        return `Unable to reach ${WORKER_ENDPOINT} from '${currentOrigin}'. Verify that the custom domain 'arapi.aurtho.com' is active in Cloudflare Workers & DNS and not blocked by a firewall or ad-blocker.`;
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async function executeReshaping() {
-      if (!carBase64 || !decalBase64) return;
+      if (!carBase64 || !decalBase64 || isGenerating || isAnalyzingAlpha) return;
       dismissError();
 
+      isGenerating = true;
+      checkReadyToGenerate();
+
+      document.getElementById('cancel-btn').classList.remove('hidden');
       document.getElementById('state-empty').classList.add('hidden');
       document.getElementById('state-output').classList.add('hidden');
       document.getElementById('output-actions').classList.add('hidden');
@@ -577,64 +706,143 @@
       const stepText = document.getElementById('loading-step-text');
       stepText.textContent = "Analyzing decal perimeter & reasoning window geometry...";
 
-      currentAbortController = new AbortController();
+      const targetRatio = decalBoundingRatio || (decalDimensions.width / decalDimensions.height).toFixed(3);
+      const userNotes = document.getElementById('retoucher-notes').value.trim();
+
+      const payload = {
+        targetAspectRatio: targetRatio,
+        retoucherNotes: userNotes,
+        carImage: {
+          mimeType: carMimeType,
+          data: carBase64
+        },
+        decalImage: {
+          mimeType: decalMimeType,
+          data: decalBase64
+        }
+      };
+
+      const bodyString = JSON.stringify(payload);
 
       try {
-        const targetRatio = decalBoundingRatio || (decalDimensions.width / decalDimensions.height).toFixed(3);
-        const userNotes = document.getElementById('retoucher-notes').value.trim();
+        let finalResult = null;
 
-        const payload = {
-          targetAspectRatio: targetRatio,
-          retoucherNotes: userNotes,
-          carImage: {
-            mimeType: carFile.type || "image/jpeg",
-            data: carBase64
-          },
-          decalImage: {
-            mimeType: decalFile.type || "image/png",
-            data: decalBase64
+        for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+          currentAbortController = new AbortController();
+          const timeoutId = setTimeout(() => {
+            if (currentAbortController) {
+              currentAbortController.abort("REQUEST_TIMEOUT");
+            }
+          }, REQUEST_TIMEOUT_MS);
+
+          try {
+            if (attempt > 0) {
+              stepText.textContent = `Retrying connection to studio engine (Attempt ${attempt + 1})...`;
+            } else {
+              stepText.textContent = "Synthesizing reshaped window photography...";
+            }
+
+            const response = await fetch(WORKER_ENDPOINT, {
+              method: "POST",
+              mode: "cors",
+              credentials: "omit",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: bodyString,
+              signal: currentAbortController.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const rawText = await response.text();
+            let parsed = null;
+            try {
+              parsed = rawText ? JSON.parse(rawText) : null;
+            } catch {
+              // If Cloudflare returned an HTML 502/504 gateway page, retry once if eligible
+              if ([502, 503, 504, 524].includes(response.status) && attempt < MAX_TRANSIENT_RETRIES) {
+                await sleep(1800 * (attempt + 1));
+                continue;
+              }
+              throw new Error(`Server returned non-JSON response (HTTP ${response.status}): ${rawText.slice(0, 200)}`);
+            }
+
+            // Handle transient HTTP 429 / 502 / 503 / 504 with Retry-After support
+            if ([429, 502, 503, 504].includes(response.status) && attempt < MAX_TRANSIENT_RETRIES) {
+              const retryAfterHeader = response.headers.get("Retry-After");
+              let waitMs = 2000 * (attempt + 1);
+              if (retryAfterHeader && !isNaN(Number(retryAfterHeader))) {
+                waitMs = Math.min(10000, Math.max(1000, Number(retryAfterHeader) * 1000));
+              }
+              stepText.textContent = `Server busy (HTTP ${response.status}). Retrying in ${(waitMs / 1000).toFixed(0)}s...`;
+              await sleep(waitMs);
+              continue;
+            }
+
+            if (!response.ok || !parsed || parsed.success === false) {
+              const errMsg = parsed?.error || `Server returned error (HTTP ${response.status}).`;
+              const err = new Error(errMsg);
+              err.isPermanent = true;
+              throw err;
+            }
+
+            if (!parsed.imageData || typeof parsed.imageData !== "string" || !parsed.imageData.startsWith("data:image/")) {
+              const err = new Error("Server response succeeded but did not contain a valid image data URI.");
+              err.isPermanent = true;
+              throw err;
+            }
+
+            finalResult = parsed;
+            break;
+          } catch (attemptErr) {
+            clearTimeout(timeoutId);
+
+            // Handle explicit user cancellation or timeout immediately
+            if (currentAbortController?.signal?.aborted) {
+              const reason = currentAbortController.signal.reason;
+              if (reason === "USER_CANCELLED") {
+                throw new Error("Generation was canceled by user.");
+              }
+              if (reason === "REQUEST_TIMEOUT") {
+                throw new Error("The studio request timed out after 95 seconds. Please try again.");
+              }
+              throw new Error("Request was aborted.");
+            }
+
+            if (attemptErr.isPermanent) {
+              throw attemptErr;
+            }
+
+            // Network/fetch failure: retry once after short backoff
+            if (attempt < MAX_TRANSIENT_RETRIES) {
+              await sleep(1500);
+              continue;
+            }
+
+            // Final network failure -> run diagnostics
+            const isFetchTypeError = attemptErr.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(attemptErr.message || "");
+            if (isFetchTypeError) {
+              const diagnosticHint = await diagnoseFetchFailure();
+              const netErr = new Error(`Network request to ${WORKER_ENDPOINT} failed (${attemptErr.message || "Failed to fetch"}).`);
+              netErr.diagnosticHint = diagnosticHint;
+              throw netErr;
+            }
+
+            throw attemptErr;
           }
-        };
-
-        stepText.textContent = "Synthesizing reshaped window photography...";
-
-        let response;
-        try {
-          response = await fetch(WORKER_ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            signal: currentAbortController.signal
-          });
-        } catch (fetchErr) {
-          if (fetchErr.name === 'AbortError') {
-            throw new Error("Generation canceled by user.");
-          }
-          throw new Error(`Network connection error to studio backend (${WORKER_ENDPOINT}): ${fetchErr.message || 'Failed to fetch'}. Please verify that the Cloudflare Worker 'arapi' is deployed and online.`);
         }
 
-        const rawText = await response.text();
-        let result = null;
-        try {
-          result = JSON.parse(rawText);
-        } catch {
-          throw new Error(`Worker returned non-JSON response (HTTP ${response.status}): ${rawText.slice(0, 250)}`);
+        if (!finalResult) {
+          throw new Error("Failed to receive a valid image response from the studio backend.");
         }
 
-        if (!response.ok || !result || result.success === false) {
-          const detail = result?.error || `Server returned error (HTTP ${response.status}): ${rawText.slice(0, 250)}`;
-          throw new Error(detail);
-        }
-
-        if (!result.imageData) {
-          throw new Error("API response succeeded but contained no image candidate payload.");
-        }
-
-        generatedImageUrl = result.imageData;
+        generatedImageUrl = finalResult.imageData;
 
         // Populate viewport images
         document.getElementById('output-img').src = generatedImageUrl;
-        document.getElementById('split-before-img').src = `data:image/jpeg;base64,${carBase64}`;
+        document.getElementById('split-before-img').src = document.getElementById('car-preview-img').src;
         document.getElementById('split-after-img').src = generatedImageUrl;
 
         document.getElementById('state-loading').classList.add('hidden');
@@ -646,8 +854,20 @@
         setViewMode('single');
       } catch (err) {
         document.getElementById('state-loading').classList.add('hidden');
-        document.getElementById('state-empty').classList.remove('hidden');
-        showError(err.message || String(err) || "Failed to generate reshaped photo.");
+        if (generatedImageUrl) {
+          document.getElementById('state-output').classList.remove('hidden');
+          document.getElementById('output-actions').classList.remove('hidden');
+          document.getElementById('view-mode-controls').classList.remove('hidden');
+          document.getElementById('output-ready-badge').classList.remove('hidden');
+        } else {
+          document.getElementById('state-empty').classList.remove('hidden');
+        }
+        showError(err.message || String(err) || "Failed to generate reshaped photo.", err.diagnosticHint || "");
+      } finally {
+        isGenerating = false;
+        currentAbortController = null;
+        document.getElementById('cancel-btn').classList.add('hidden');
+        checkReadyToGenerate();
       }
     }
 
