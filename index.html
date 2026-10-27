@@ -598,12 +598,20 @@
 
         stepText.textContent = "Synthesizing reshaped window photography...";
 
-        const response = await fetch(WORKER_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          signal: currentAbortController.signal
-        });
+        let response;
+        try {
+          response = await fetch(WORKER_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: currentAbortController.signal
+          });
+        } catch (fetchErr) {
+          if (fetchErr.name === 'AbortError') {
+            throw new Error("Generation canceled by user.");
+          }
+          throw new Error(`Network connection error to studio backend (${WORKER_ENDPOINT}): ${fetchErr.message || 'Failed to fetch'}. Please verify that the Cloudflare Worker 'arapi' is deployed and online.`);
+        }
 
         const rawText = await response.text();
         let result = null;
