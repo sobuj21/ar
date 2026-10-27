@@ -326,8 +326,8 @@
 
   <script>
     const WORKER_ENDPOINT = "https://arapi.aurtho.com/api/generate";
-    const REQUEST_TIMEOUT_MS = 95000; // 95s safe upper bound for multi-model fallback
-    const MAX_TRANSIENT_RETRIES = 1;
+    const REQUEST_TIMEOUT_MS = 75000; // 75s client timeout (matches Worker's 62s budget so Worker always responds cleanly first)
+    const MAX_TRANSIENT_RETRIES = 0; // Worker handles model fallback internally; avoid double-waiting 2x on timeouts
 
     let carFile = null;
     let carBase64 = null;
@@ -422,11 +422,11 @@
     window.addEventListener('DOMContentLoaded', setupDragAndDrop);
 
     /**
-     * Client-side downscaler & encoder to keep payloads fast & within Worker limits
-     * - Car photos are encoded as high-quality JPEG (0.92, max 1536px)
-     * - Decal templates preserve full alpha channel (WebP 0.92 or PNG, max 1024px)
+     * Client-side downscaler & encoder to keep payloads fast & within Worker 128MB memory limits
+     * - Car photos are encoded as high-quality JPEG (0.88, max 1280px)
+     * - Decal templates preserve full alpha channel (WebP 0.90 or PNG, max 800px)
      */
-    function scaleAndEncodeImage(file, maxEdge = 1536, preserveAlpha = false) {
+    function scaleAndEncodeImage(file, maxEdge = 1280, preserveAlpha = false) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -455,7 +455,7 @@
             ctx.drawImage(img, 0, 0, width, height);
 
             let targetMime = preserveAlpha ? 'image/webp' : 'image/jpeg';
-            let dataUrl = canvas.toDataURL(targetMime, 0.92);
+            let dataUrl = canvas.toDataURL(targetMime, preserveAlpha ? 0.90 : 0.88);
 
             // Fallback to PNG if browser does not encode WebP
             if (preserveAlpha && !dataUrl.startsWith('data:image/webp')) {
@@ -498,7 +498,7 @@
       carFile = file;
 
       try {
-        const result = await scaleAndEncodeImage(file, 1536, false);
+        const result = await scaleAndEncodeImage(file, 1280, false);
         carBase64 = result.cleanBase64;
         carMimeType = result.mimeType;
         carDimensions = { width: result.width, height: result.height };
@@ -544,7 +544,7 @@
       checkReadyToGenerate();
 
       try {
-        const result = await scaleAndEncodeImage(file, 1024, true);
+        const result = await scaleAndEncodeImage(file, 800, true);
         decalBase64 = result.cleanBase64;
         decalMimeType = result.mimeType;
         decalDimensions = { width: result.width, height: result.height };
