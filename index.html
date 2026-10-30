@@ -385,7 +385,7 @@
 
   <script>
     const WORKER_ENDPOINT = "https://arapi.aurtho.com/api/generate";
-    const REQUEST_TIMEOUT_MS = 80000;
+    const AI_ENHANCE_TIMEOUT_MS = 24000; // Fast 24s ceiling for optional AI pass; never blocks 2000x2000 output
     const TARGET_EXPORT_SIZE = 2000; // Strictly 2000 x 2000 px for Amazon & Etsy
 
     let workflowMode = "placement"; // 'placement' (Car + Decal) | 'clean' (Car Only)
@@ -1102,7 +1102,37 @@
       ctx.fillRect(0, 0, TARGET_EXPORT_SIZE, TARGET_EXPORT_SIZE);
       ctx.restore();
 
-      if (workflowMode === 'placement' && trimmedDecalCanvas && detectedWindowQuad) {
+      // If in Clean Car mode and a window is detected, automatically reconstruct clean deep-tinted glass
+      // inside the window mask (removes any old stickers/decals cleanly) and add the 3D OEM rubber seal!
+      if (workflowMode === 'clean' && detectedWindowQuad) {
+        const { maskCanvas, bbox } = detectedWindowQuad;
+        const cleanGlassLayer = document.createElement('canvas');
+        cleanGlassLayer.width = TARGET_EXPORT_SIZE;
+        cleanGlassLayer.height = TARGET_EXPORT_SIZE;
+        const cgCtx = cleanGlassLayer.getContext('2d');
+
+        const glassGrad = cgCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.maxX, bbox.maxY);
+        glassGrad.addColorStop(0, '#0c0f12');
+        glassGrad.addColorStop(0.5, '#12161b');
+        glassGrad.addColorStop(1, '#080a0c');
+        cgCtx.fillStyle = glassGrad;
+        cgCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
+
+        const glassReflect = cgCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.minX + (bbox.maxX - bbox.minX) * 0.9, bbox.maxY);
+        glassReflect.addColorStop(0, 'rgba(255, 255, 255, 0.09)');
+        glassReflect.addColorStop(0.3, 'rgba(255, 255, 255, 0.025)');
+        glassReflect.addColorStop(0.4, 'rgba(255, 255, 255, 0)');
+        glassReflect.addColorStop(1, 'rgba(0, 0, 0, 0.14)');
+        cgCtx.fillStyle = glassReflect;
+        cgCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
+
+        cgCtx.globalCompositeOperation = 'destination-in';
+        cgCtx.drawImage(maskCanvas, 0, 0);
+        cgCtx.globalCompositeOperation = 'source-over';
+
+        ctx.drawImage(cleanGlassLayer, 0, 0);
+        drawRealisticRubberWindowSeal(ctx, maskCanvas, bbox, sealWidth);
+      } else if (workflowMode === 'placement' && trimmedDecalCanvas && detectedWindowQuad) {
         const { maskCanvas, bbox } = detectedWindowQuad;
 
         const winLayer = document.createElement('canvas');
@@ -1318,9 +1348,11 @@
       carFile = file;
 
       try {
-        const result = await scaleAndEncodeImage(file, 1440, false);
-        carBase64 = result.cleanBase64;
-        carMimeType = result.mimeType;
+        // High-res 1600px for local 2000x2000 studio master, plus compact 896px payload for fast AI Worker response
+        const result = await scaleAndEncodeImage(file, 1600, false);
+        const workerCompact = await scaleAndEncodeImage(file, 896, false);
+        carBase64 = workerCompact.cleanBase64;
+        carMimeType = workerCompact.mimeType;
         carDimensions = { width: result.width, height: result.height };
         originalCarImgElement = result.imgElement;
 
@@ -1564,11 +1596,6 @@
       const userNotes = document.getElementById('retoucher-notes').value.trim();
 
       currentAbortController = new AbortController();
-      const timeoutId = setTimeout(() => {
-        if (currentAbortController) {
-          currentAbortController.abort("REQUEST_TIMEOUT");
-        }
-      }, REQUEST_TIMEOUT_MS);
 
       try {
         const carPreviewDataUrl = document.getElementById('car-preview-img').src;
@@ -1578,12 +1605,19 @@
         detectedWindowQuad = detectWindowGeometryOn2000Canvas(origCar2000);
         latestCleanCarCanvas = origCar2000;
 
-        // Step 2: Always call the AI Studio Engine to transform the car photo into a super-realistic
-        // DSLR automotive photograph (natural lighting, realistic shadows, authentic paint & tire texture,
-        // and real 3D rubber window seal) while keeping the exact visible part of the car unchanged!
+        // Step 2: Attempt fast AI Studio Car Enhancement (with its own dedicated 24s sub-controller
+        // so an upstream timeout NEVER aborts the 2000x2000 studio render!)
         stepText.textContent = "AI Studio: Enhancing realistic car photography, lighting, shadows & rubber window seal...";
 
         let aiCarDataUri = null;
+        const aiFetchController = new AbortController();
+        const onUserCancel = () => aiFetchController.abort("USER_CANCELLED");
+        currentAbortController.signal.addEventListener("abort", onUserCancel, { once: true });
+
+        const aiTimeoutId = setTimeout(() => {
+          aiFetchController.abort("AI_SUB_TIMEOUT");
+        }, AI_ENHANCE_TIMEOUT_MS);
+
         try {
           const payload = {
             mode: "clean_car",
@@ -1606,7 +1640,7 @@
               "Accept": "application/json"
             },
             body: JSON.stringify(payload),
-            signal: currentAbortController.signal
+            signal: aiFetchController.signal
           });
 
           const rawText = await response.text();
@@ -1614,17 +1648,17 @@
 
           if (response.ok && parsed && parsed.success && parsed.imageData?.startsWith("data:image/")) {
             aiCarDataUri = parsed.imageData;
-          } else if (workflowMode === 'clean') {
-            throw new Error(parsed?.error || `Server returned error (HTTP ${response.status}).`);
           }
         } catch (workerErr) {
-          if (workflowMode === 'clean' || currentAbortController?.signal?.aborted) {
+          if (currentAbortController?.signal?.aborted) {
             throw workerErr;
           }
-          console.warn("AI Studio enhancement fallback to local studio lighting:", workerErr);
+          // If AI sub-request timed out or upstream is busy, proceed seamlessly with the 2000x2000 Studio Engine
+          console.info("Proceeding with high-resolution 2000x2000 studio engine:", workerErr?.message || workerErr);
+        } finally {
+          clearTimeout(aiTimeoutId);
+          currentAbortController.signal.removeEventListener("abort", onUserCancel);
         }
-
-        clearTimeout(timeoutId);
 
         if (aiCarDataUri) {
           const aiCar2000 = await renderImageTo2000Canvas(aiCarDataUri);
@@ -1637,7 +1671,7 @@
 
         stepText.textContent = "Fitting 100% identical decal edge-to-edge into every window corner & sealing rubber gasket...";
 
-        // Step 3: Compose final 2000x2000 photo with the AI-enhanced realistic car body,
+        // Step 3: Compose final 2000x2000 photo with realistic studio lighting,
         // prominent 3D OEM rubber weatherstripping seal, and 100% identical decal fitted to every corner!
         generatedImageUrl = composeMaster2000StudioRender();
 
@@ -1653,7 +1687,6 @@
 
         setViewMode('single');
       } catch (err) {
-        clearTimeout(timeoutId);
         document.getElementById('state-loading').classList.add('hidden');
 
         if (generatedImageUrl) {
@@ -1666,22 +1699,9 @@
         }
 
         if (currentAbortController?.signal?.aborted) {
-          const reason = currentAbortController.signal.reason;
-          if (reason === "USER_CANCELLED") {
-            showError("Generation was canceled by user.");
-          } else if (reason === "REQUEST_TIMEOUT") {
-            showError("The studio request timed out. Please try again.");
-          } else {
-            showError("Request was aborted.");
-          }
+          showError("Generation was canceled by user.");
         } else {
-          const isFetchTypeError = err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
-          if (isFetchTypeError) {
-            const diagnosticHint = await diagnoseFetchFailure();
-            showError(`Network request to ${WORKER_ENDPOINT} failed (${err.message || "Failed to fetch"}).`, diagnosticHint);
-          } else {
-            showError(err.message || String(err) || "Failed to generate 2000×2000 photo.");
-          }
+          showError(err.message || String(err) || "Failed to generate 2000×2000 photo.");
         }
       } finally {
         isGenerating = false;
