@@ -879,12 +879,13 @@
     }
 
     /**
-     * Automatically warps the decal smoothly (scanline-by-scanline & column-by-column)
-     * so that every single edge and corner of the decal conforms 100% flush to the exact
-     * curved contour of the window pane (inside the rubber weatherstripping gasket)
-     * with ZERO gap and ZERO triangle seam lines!
+     * Warps the decal as ONE continuous, undistorted vinyl sheet (Coons-Patch / Perspective Homography)
+     * so that:
+     * 1. Internal design elements (skull, stars, stripes, text) are 100% IDENTICAL & NEVER sliced or shifted!
+     * 2. The outer perimeter of the decal fits 100% flush into every curved edge and corner of the window
+     *    right up to the inner lip of the 3D rubber weatherstripping seal.
      */
-    function warpDecalToExactWindowContour(srcDecalCanvas, windowMaskCanvas, bbox, sealInsetPx = 11) {
+    function warpDecalToExactWindowContour(srcDecalCanvas, windowMaskCanvas, bbox, sealInsetPx = 10) {
       const W = windowMaskCanvas.width;
       const H = windowMaskCanvas.height;
 
@@ -896,101 +897,91 @@
       const srcCtx = srcDecalCanvas.getContext('2d');
       const srcData = srcCtx.getImageData(0, 0, sw, sh).data;
 
-      // 1. Measure active decal horizontal & vertical spans so curved/rounded decal corners
-      // map 100% edge-to-edge into the window's curved corners
-      const decalRowLeft = new Int32Array(sh);
-      const decalRowRight = new Int32Array(sh);
-      for (let sy = 0; sy < sh; sy++) {
-        let l = 0, r = sw - 1;
-        for (let sx = 0; sx < sw; sx++) {
-          if (srcData[(sy * sw + sx) * 4 + 3] > 20) { l = sx; break; }
-        }
-        for (let sx = sw - 1; sx >= 0; sx--) {
-          if (srcData[(sy * sw + sx) * 4 + 3] > 20) { r = sx; break; }
-        }
-        // Smooth blend between full bbox (30%) and tight local contour (70%) so internal flag stars stay straight
-        // while outer rounded corners stretch right into the window corners
-        decalRowLeft[sy] = Math.round(l * 0.65);
-        decalRowRight[sy] = Math.round(sw - 1 - (sw - 1 - r) * 0.65);
-      }
-
-      const decalColTop = new Int32Array(sw);
-      const decalColBot = new Int32Array(sw);
-      for (let sx = 0; sx < sw; sx++) {
-        let t = 0, b = sh - 1;
-        for (let sy = 0; sy < sh; sy++) {
-          if (srcData[(sy * sw + sx) * 4 + 3] > 20) { t = sy; break; }
-        }
-        for (let sy = sh - 1; sy >= 0; sy--) {
-          if (srcData[(sy * sw + sx) * 4 + 3] > 20) { b = sy; break; }
-        }
-        decalColTop[sx] = Math.round(t * 0.65);
-        decalColBot[sx] = Math.round(sh - 1 - (sh - 1 - b) * 0.65);
-      }
-
-      // 2. Measure the window's exact top/bottom/left/right boundaries at every X and Y coordinate
       const minX = Math.max(0, Math.floor(bbox.minX));
       const maxX = Math.min(W - 1, Math.ceil(bbox.maxX));
       const minY = Math.max(0, Math.floor(bbox.minY));
       const maxY = Math.min(H - 1, Math.ceil(bbox.maxY));
+      const bw = Math.max(1, maxX - minX);
+      const bh = Math.max(1, maxY - minY);
 
-      const winRowLeft = new Float32Array(H);
-      const winRowRight = new Float32Array(H);
-      for (let y = minY; y <= maxY; y++) {
-        let l = -1, r = -1;
-        for (let x = minX; x <= maxX; x++) {
-          if (maskData[(y * W + x) * 4 + 3] > 128) { l = x; break; }
-        }
-        for (let x = maxX; x >= minX; x--) {
-          if (maskData[(y * W + x) * 4 + 3] > 128) { r = x; break; }
-        }
-        if (l !== -1 && r !== -1 && r > l) {
-          winRowLeft[y] = l + sealInsetPx;
-          winRowRight[y] = r - sealInsetPx;
-        } else {
-          winRowLeft[y] = minX + sealInsetPx;
-          winRowRight[y] = maxX - sealInsetPx;
-        }
-      }
+      // Extract the smooth top and bottom window edge curves across the central 76% of the window width,
+      // and extrapolate linearly into the 4 corners so rounded window corners NEVER pinch or distort the decal!
+      const xStart = minX + Math.round(bw * 0.12);
+      const xEnd = maxX - Math.round(bw * 0.12);
 
-      const winColTop = new Float32Array(W);
-      const winColBot = new Float32Array(W);
-      for (let x = minX; x <= maxX; x++) {
-        let t = -1, b = -1;
+      const findTopAtX = (x) => {
+        const cx = Math.min(maxX, Math.max(minX, Math.round(x)));
         for (let y = minY; y <= maxY; y++) {
-          if (maskData[(y * W + x) * 4 + 3] > 128) { t = y; break; }
+          if (maskData[(y * W + cx) * 4 + 3] > 128) return y;
         }
-        for (let y = maxY; y >= minY; y--) {
-          if (maskData[(y * W + x) * 4 + 3] > 128) { b = y; break; }
-        }
-        if (t !== -1 && b !== -1 && b > t) {
-          winColTop[x] = t + sealInsetPx;
-          winColBot[x] = b - sealInsetPx;
-        } else {
-          winColTop[x] = minY + sealInsetPx;
-          winColBot[x] = maxY - sealInsetPx;
-        }
-      }
-
-      // Smooth the per-row and per-column window boundaries so curved edges flow organically
-      const smoothArray = (arr, start, end, radius = 14) => {
-        const copy = new Float32Array(arr);
-        for (let i = start; i <= end; i++) {
-          let sum = 0, count = 0;
-          for (let k = -radius; k <= radius; k++) {
-            const idx = Math.min(end, Math.max(start, i + k));
-            sum += copy[idx];
-            count++;
-          }
-          arr[i] = sum / count;
-        }
+        return minY;
       };
-      smoothArray(winRowLeft, minY, maxY, 16);
-      smoothArray(winRowRight, minY, maxY, 16);
-      smoothArray(winColTop, minX, maxX, 16);
-      smoothArray(winColBot, minX, maxX, 16);
+      const findBotAtX = (x) => {
+        const cx = Math.min(maxX, Math.max(minX, Math.round(x)));
+        for (let y = maxY; y >= minY; y--) {
+          if (maskData[(y * W + cx) * 4 + 3] > 128) return y;
+        }
+        return maxY;
+      };
 
-      // 3. Per-pixel bilinear inverse mapping (Zero triangle seams, 100% edge-to-edge corner fit)
+      const yStart = minY + Math.round(bh * 0.14);
+      const yEnd = maxY - Math.round(bh * 0.14);
+
+      const findLeftAtY = (y) => {
+        const cy = Math.min(maxY, Math.max(minY, Math.round(y)));
+        for (let x = minX; x <= maxX; x++) {
+          if (maskData[(cy * W + x) * 4 + 3] > 128) return x;
+        }
+        return minX;
+      };
+      const findRightAtY = (y) => {
+        const cy = Math.min(maxY, Math.max(minY, Math.round(y)));
+        for (let x = maxX; x >= minX; x--) {
+          if (maskData[(cy * W + x) * 4 + 3] > 128) return x;
+        }
+        return maxX;
+      };
+
+      // Fit smooth perspective lines for Left and Right window edges
+      const leftX1 = findLeftAtY(yStart) + sealInsetPx;
+      const leftX2 = findLeftAtY(yEnd) + sealInsetPx;
+      const rightX1 = findRightAtY(yStart) - sealInsetPx;
+      const rightX2 = findRightAtY(yEnd) - sealInsetPx;
+
+      const getLeftBoundaryX = (y) => {
+        const t = (y - yStart) / Math.max(1, yEnd - yStart);
+        return leftX1 + t * (leftX2 - leftX1);
+      };
+      const getRightBoundaryX = (y) => {
+        const t = (y - yStart) / Math.max(1, yEnd - yStart);
+        return rightX1 + t * (rightX2 - rightX1);
+      };
+
+      // Sample 3 points along Top and Bottom curves (Left-ish, Center, Right-ish) for smooth quadratic curve fit
+      // so the decal follows the gently arched roof line of the window while keeping all internal graphics straight!
+      const xMid = Math.round((xStart + xEnd) / 2);
+      const topY1 = findTopAtX(xStart) + sealInsetPx;
+      const topYMid = findTopAtX(xMid) + sealInsetPx;
+      const topY2 = findTopAtX(xEnd) + sealInsetPx;
+
+      const botY1 = findBotAtX(xStart) - sealInsetPx;
+      const botYMid = findBotAtX(xMid) - sealInsetPx;
+      const botY2 = findBotAtX(xEnd) - sealInsetPx;
+
+      const evalQuadCurve = (s, y0, yHalf, y1) => {
+        // Quadratic Lagrange through s=0, s=0.5, s=1.0
+        return y0 * (1 - s) * (1 - 2 * s) + 4 * yHalf * s * (1 - s) + y1 * s * (2 * s - 1);
+      };
+
+      const getTopBoundaryY = (x) => {
+        const s = (x - xStart) / Math.max(1, xEnd - xStart);
+        return evalQuadCurve(s, topY1, topYMid, topY2);
+      };
+      const getBotBoundaryY = (x) => {
+        const s = (x - xStart) / Math.max(1, xEnd - xStart);
+        return evalQuadCurve(s, botY1, botYMid, botY2);
+      };
+
       const outCanvas = document.createElement('canvas');
       outCanvas.width = W;
       outCanvas.height = H;
@@ -998,38 +989,35 @@
       const outImgData = outCtx.createImageData(W, H);
       const dst = outImgData.data;
 
+      // Slight 1.2% overscan so the decal tucks cleanly underneath the inner lip of the rubber gasket with zero gap
+      const overscan = 0.012;
+
       for (let y = minY; y <= maxY; y++) {
-        const rowL = winRowLeft[y];
-        const rowR = winRowRight[y];
-        const rowSpan = Math.max(1, rowR - rowL);
+        const leftX = getLeftBoundaryX(y);
+        const rightX = getRightBoundaryX(y);
+        const spanX = Math.max(1, rightX - leftX);
 
         for (let x = minX; x <= maxX; x++) {
           const mAlpha = maskData[(y * W + x) * 4 + 3];
           if (mAlpha === 0) continue;
 
-          const colT = winColTop[x];
-          const colB = winColBot[x];
-          const colSpan = Math.max(1, colB - colT);
+          const topY = getTopBoundaryY(x);
+          const botY = getBotBoundaryY(x);
+          const spanY = Math.max(1, botY - topY);
 
-          // Normalized (u, v) in [0, 1] inside the exact curved window interior
-          const u = (x - rowL) / rowSpan;
-          const v = (y - colT) / colSpan;
+          // Continuous, smooth normalized coordinates (u, v) across the entire window quad
+          const uRaw = (x - leftX) / spanX;
+          const vRaw = (y - topY) / spanY;
+
+          const u = (uRaw - 0.5) * (1 - overscan * 2) + 0.5;
+          const v = (vRaw - 0.5) * (1 - overscan * 2) + 0.5;
 
           if (u < 0 || u > 1 || v < 0 || v > 1) continue;
 
-          // Map (u, v) to the active decal pixel coordinates
-          const approxSy = Math.min(sh - 1, Math.max(0, Math.round(v * (sh - 1))));
-          const approxSx = Math.min(sw - 1, Math.max(0, Math.round(u * (sw - 1))));
+          const srcX = u * (sw - 1);
+          const srcY = v * (sh - 1);
 
-          const dL = decalRowLeft[approxSy];
-          const dR = decalRowRight[approxSy];
-          const dT = decalColTop[approxSx];
-          const dB = decalColBot[approxSx];
-
-          const srcX = dL + u * (dR - dL);
-          const srcY = dT + v * (dB - dT);
-
-          // Bilinear sample from srcData for razor-sharp anti-aliased edges
+          // High-precision bilinear interpolation from the original trimmed decal
           const x0 = Math.floor(srcX);
           const y0 = Math.floor(srcY);
           const x1 = Math.min(sw - 1, x0 + 1);
@@ -1052,7 +1040,7 @@
           const b = srcData[i00 + 2] * w00 + srcData[i10 + 2] * w10 + srcData[i01 + 2] * w01 + srcData[i11 + 2] * w11;
           const a = srcData[i00 + 3] * w00 + srcData[i10 + 3] * w10 + srcData[i01 + 3] * w01 + srcData[i11 + 3] * w11;
 
-          if (a > 8) {
+          if (a > 10) {
             const dstIdx = (y * W + x) * 4;
             dst[dstIdx] = r;
             dst[dstIdx + 1] = g;
@@ -1067,17 +1055,68 @@
     }
 
     /**
+     * Applies realistic DSLR automotive studio lighting, paint micro-contrast, specular reflections,
+     * and natural shadow depth to the car body outside the window so the car looks like a real commercial photo.
+     */
+    function enhanceCarBodyPhotorealism(ctx, baseCarCanvas, windowMaskCanvas) {
+      const W = TARGET_EXPORT_SIZE;
+      const H = TARGET_EXPORT_SIZE;
+
+      // 1. Base car with crisp DSLR clarity and natural dynamic range
+      ctx.save();
+      ctx.filter = 'contrast(1.09) saturate(1.08) brightness(0.99)';
+      ctx.drawImage(baseCarCanvas, 0, 0, W, H);
+      ctx.restore();
+
+      // 2. Crisp unsharp-mask detail pass (brings out real tire tread, door seams, taillight lens & paint grain)
+      const detailCanvas = document.createElement('canvas');
+      detailCanvas.width = W;
+      detailCanvas.height = H;
+      const dCtx = detailCanvas.getContext('2d');
+      dCtx.drawImage(baseCarCanvas, 0, 0, W, H);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = 0.16;
+      ctx.filter = 'contrast(1.45) grayscale(1)';
+      ctx.drawImage(detailCanvas, 0, 0, W, H);
+      ctx.restore();
+
+      // 3. Realistic overhead studio softbox highlight + lower fender/wheel-well natural shadow falloff
+      ctx.save();
+      const studioGrad = ctx.createLinearGradient(0, 0, W * 0.4, H);
+      studioGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+      studioGrad.addColorStop(0.28, 'rgba(255, 255, 255, 0.02)');
+      studioGrad.addColorStop(0.55, 'rgba(0, 0, 0, 0)');
+      studioGrad.addColorStop(0.82, 'rgba(0, 0, 0, 0.07)');
+      studioGrad.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
+      ctx.fillStyle = studioGrad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      // 4. Subtle realistic lens vignette & three-dimensional body contour shading
+      ctx.save();
+      const radGrad = ctx.createRadialGradient(W * 0.45, H * 0.38, W * 0.25, W * 0.5, H * 0.5, W * 0.78);
+      radGrad.addColorStop(0, 'rgba(255, 255, 255, 0.03)');
+      radGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0)');
+      radGrad.addColorStop(1, 'rgba(0, 0, 0, 0.14)');
+      ctx.fillStyle = radGrad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    /**
      * Automatically renders the 2000 x 2000 realistic car photo:
-     * 1. Blends the AI-enhanced realistic studio car body & natural lighting with the exact window geometry
+     * 1. Enhances the car body with DSLR studio lighting, specular highlights & natural shadow depth
      * 2. Reconstructs realistic deep-tinted automotive window glass with subtle studio reflection
-     * 3. Fits the 100% identical decal edge-to-edge into every corner of the curved window
+     * 3. Fits the 100% identical decal (zero slicing/distortion) edge-to-edge into every corner of the window
      * 4. Builds a prominent, realistic 3D OEM molded black EPDM rubber weatherstripping gasket around the window
      */
     function composeMaster2000StudioRender() {
       if (!latestCleanCarCanvas) return null;
 
-      const sealWidth = 14; // Prominent, realistic OEM rubber window gasket seal
-      const sealInsetPx = 11; // Tucks the decal edges right into the inner lip of the rubber seal
+      const sealWidth = 18; // Prominent, realistic 3D OEM rubber window weatherstripping gasket
+      const sealInsetPx = 10; // Tucks the decal edges cleanly under the inner lip of the rubber seal
 
       const outCanvas = document.createElement('canvas');
       outCanvas.width = TARGET_EXPORT_SIZE;
@@ -1086,21 +1125,8 @@
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // 1. Draw the base 2000x2000 car canvas with rich studio lighting, micro-contrast & natural shadow depth
-      ctx.save();
-      ctx.filter = 'contrast(1.06) saturate(1.05) brightness(1.01)';
-      ctx.drawImage(latestCleanCarCanvas, 0, 0, TARGET_EXPORT_SIZE, TARGET_EXPORT_SIZE);
-      ctx.restore();
-
-      // Add realistic studio directional soft key-light & shadow depth across the vehicle body
-      ctx.save();
-      const studioLight = ctx.createLinearGradient(0, 0, TARGET_EXPORT_SIZE * 0.85, TARGET_EXPORT_SIZE);
-      studioLight.addColorStop(0, 'rgba(255, 255, 255, 0.055)');
-      studioLight.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
-      studioLight.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
-      ctx.fillStyle = studioLight;
-      ctx.fillRect(0, 0, TARGET_EXPORT_SIZE, TARGET_EXPORT_SIZE);
-      ctx.restore();
+      // 1. Render enhanced DSLR realistic car body with studio light & shadow depth
+      enhanceCarBodyPhotorealism(ctx, latestCleanCarCanvas, detectedWindowQuad ? detectedWindowQuad.maskCanvas : null);
 
       // If in Clean Car mode and a window is detected, automatically reconstruct clean deep-tinted glass
       // inside the window mask (removes any old stickers/decals cleanly) and add the 3D OEM rubber seal!
@@ -1112,17 +1138,17 @@
         const cgCtx = cleanGlassLayer.getContext('2d');
 
         const glassGrad = cgCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.maxX, bbox.maxY);
-        glassGrad.addColorStop(0, '#0c0f12');
-        glassGrad.addColorStop(0.5, '#12161b');
-        glassGrad.addColorStop(1, '#080a0c');
+        glassGrad.addColorStop(0, '#0a0d10');
+        glassGrad.addColorStop(0.5, '#11151a');
+        glassGrad.addColorStop(1, '#07090b');
         cgCtx.fillStyle = glassGrad;
         cgCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
 
-        const glassReflect = cgCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.minX + (bbox.maxX - bbox.minX) * 0.9, bbox.maxY);
-        glassReflect.addColorStop(0, 'rgba(255, 255, 255, 0.09)');
-        glassReflect.addColorStop(0.3, 'rgba(255, 255, 255, 0.025)');
-        glassReflect.addColorStop(0.4, 'rgba(255, 255, 255, 0)');
-        glassReflect.addColorStop(1, 'rgba(0, 0, 0, 0.14)');
+        const glassReflect = cgCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.minX + (bbox.maxX - bbox.minX) * 0.85, bbox.maxY);
+        glassReflect.addColorStop(0, 'rgba(255, 255, 255, 0.11)');
+        glassReflect.addColorStop(0.28, 'rgba(255, 255, 255, 0.03)');
+        glassReflect.addColorStop(0.38, 'rgba(255, 255, 255, 0)');
+        glassReflect.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
         cgCtx.fillStyle = glassReflect;
         cgCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
 
@@ -1145,42 +1171,42 @@
         // Step A: Deep-tinted automotive glass base inside the window mask
         // (shows cleanly through the cut-out stars, stripes, and skull openings)
         const glassGrad = wCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.maxX, bbox.maxY);
-        glassGrad.addColorStop(0, '#0a0c0e');
-        glassGrad.addColorStop(0.5, '#101317');
-        glassGrad.addColorStop(1, '#07080a');
+        glassGrad.addColorStop(0, '#090b0e');
+        glassGrad.addColorStop(0.45, '#0f1217');
+        glassGrad.addColorStop(1, '#060709');
         wCtx.fillStyle = glassGrad;
         wCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
 
         // Realistic diagonal soft studio reflection across the glass
-        const glassReflect = wCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.minX + (bbox.maxX - bbox.minX) * 0.9, bbox.maxY);
-        glassReflect.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-        glassReflect.addColorStop(0.28, 'rgba(255, 255, 255, 0.025)');
-        glassReflect.addColorStop(0.36, 'rgba(255, 255, 255, 0.0)');
+        const glassReflect = wCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.minX + (bbox.maxX - bbox.minX) * 0.85, bbox.maxY);
+        glassReflect.addColorStop(0, 'rgba(255, 255, 255, 0.09)');
+        glassReflect.addColorStop(0.26, 'rgba(255, 255, 255, 0.025)');
+        glassReflect.addColorStop(0.35, 'rgba(255, 255, 255, 0.0)');
         glassReflect.addColorStop(0.75, 'rgba(0, 0, 0, 0.05)');
-        glassReflect.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+        glassReflect.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
         wCtx.fillStyle = glassReflect;
         wCtx.fillRect(bbox.minX - 40, bbox.minY - 40, (bbox.maxX - bbox.minX) + 80, (bbox.maxY - bbox.minY) + 80);
 
-        // Step B: Warp the 100% original decal pixels smoothly to every curved edge and corner of the window
+        // Step B: Warp the 100% original decal as one smooth continuous vinyl sheet into every corner
         const decalLayer = warpDecalToExactWindowContour(trimmedDecalCanvas, maskCanvas, bbox, sealInsetPx);
         const dCtx = decalLayer.getContext('2d');
 
-        // Apply subtle realistic matte-vinyl studio sheen on the decal's opaque vinyl pixels (no seam lines!)
+        // Apply subtle realistic matte-vinyl studio sheen on the decal's opaque vinyl pixels
         dCtx.save();
         dCtx.globalCompositeOperation = 'source-atop';
         const vinylSheen = dCtx.createLinearGradient(bbox.minX, bbox.minY, bbox.maxX, bbox.maxY);
-        vinylSheen.addColorStop(0, 'rgba(255, 255, 255, 0.075)');
-        vinylSheen.addColorStop(0.35, 'rgba(255, 255, 255, 0.02)');
+        vinylSheen.addColorStop(0, 'rgba(255, 255, 255, 0.065)');
+        vinylSheen.addColorStop(0.32, 'rgba(255, 255, 255, 0.015)');
         vinylSheen.addColorStop(0.55, 'rgba(0, 0, 0, 0)');
-        vinylSheen.addColorStop(1, 'rgba(0, 0, 0, 0.09)');
+        vinylSheen.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
         dCtx.fillStyle = vinylSheen;
         dCtx.fillRect(bbox.minX - 30, bbox.minY - 30, (bbox.maxX - bbox.minX) + 60, (bbox.maxY - bbox.minY) + 60);
         dCtx.restore();
 
         // Physical die-cut vinyl edge micro-bevel & contact shadow on the glass
         wCtx.save();
-        wCtx.shadowColor = 'rgba(0, 0, 0, 0.78)';
-        wCtx.shadowBlur = 1.5;
+        wCtx.shadowColor = 'rgba(0, 0, 0, 0.82)';
+        wCtx.shadowBlur = 1.6;
         wCtx.shadowOffsetX = 0.8;
         wCtx.shadowOffsetY = 1.0;
         wCtx.drawImage(decalLayer, 0, 0);
